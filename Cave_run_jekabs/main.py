@@ -1,6 +1,8 @@
 import os
 import time
 import sys
+import csv
+import random
 
 try:
     TERMINAL_WIDTH = os.get_terminal_size().columns
@@ -20,6 +22,145 @@ def center_ascii(text):
         else:
             centered_lines.append('')
     return '\n'.join(centered_lines)
+
+# Damage calculation functions
+def calculate_damage(attacker_attack, defender_defense):
+    damage = attacker_attack - (defender_defense / 2)
+    damage = max(1, int(damage))
+    return damage
+
+def calculate_critical(damage, crit_chance=0.15):
+    if random.random() < crit_chance:
+        return damage * 2, True
+    return damage, False
+
+def final_damage(attacker_attack, defender_defense):
+    base_damage = calculate_damage(attacker_attack, defender_defense)
+    dmg, crit = calculate_critical(base_damage)
+    return dmg, crit
+
+# Load monsters
+MONSTERS = []
+with open('../caverunnerniks/monsters.csv', 'r') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        MONSTERS.append({
+            'name': row['name'],
+            'hp': int(row['hp']),
+            'attack': int(row['attack']),
+            'xp_reward': int(row['xp_reward']),
+            'defense': 0  # Assume 0 defense for monsters
+        })
+
+def load_monster():
+    return random.choice(MONSTERS).copy()  # Copy to avoid modifying original
+
+def level_up(player):
+    print("\n*** LEVEL UP! ***")
+    player["level"] += 1
+    player["xp_needed"] += 10  # Increase XP needed for next level
+    points = 3
+
+    print(f"Tu sasniedzi {player['level']} līmeni!")
+    print(f"Tev ir {points} atribūtu punkti ko sadalīt.")
+
+    while points > 0:
+        print("\nIzvēlies, kur ieguldīt punktu:")
+        print("attack - Uzbrukums (+1)")
+        print("defense - Aizsardzība (+1)")
+        print("max_health - Maksimālais HP (+5)")
+        print("quit - Iziet no spēles")
+        print(f"Atlikušie punkti: {points}")
+
+        choice = input("Tava izvēle: ").strip().lower()
+
+        if choice == "attack":
+            player["str"] += 1
+            points -= 1
+            print("Uzbrukums palielināts!")
+        elif choice == "defense":
+            player["defense"] += 1
+            points -= 1
+            print("Aizsardzība palielināta!")
+        elif choice == "max_health":
+            player["max_hp"] += 5
+            player["hp"] = player["max_hp"]  # Heal to full
+            points -= 1
+            print("Maksimālais HP palielināts!")
+        elif choice == "quit" or choice == "iziet":
+            print("Tu izlēmi iziet no spēles.")
+            player['hp'] = 0  # Force game over
+            return
+        else:
+            print("Nepareiza izvēle!")
+
+def run_combat(player, monster):
+    defending = False
+    while player['hp'] > 0 and monster['hp'] > 0:
+        clear_screen()
+        print(f"--- Cīņa ar {monster['name']} ---")
+        print(f"Tavs HP: {player['hp']}/{player['max_hp']} | Spēks: {player['str']} | Aizsardzība: {player.get('defense', 0)}")
+        print(f"{monster['name']} HP: {monster['hp']} | Uzbrukums: {monster['attack']}")
+        print("\nIzvēlies darbību:")
+        print("attack - Uzbrukt")
+        print("defense - Aizsargāties")
+        print("item - Izmantot priekšmetu")
+        print("quit - Iziet no spēles")
+        
+        action = input("Tava izvēle: ").strip().lower()
+        
+        if action == "attack":
+            dmg, crit = final_damage(player['str'], monster['defense'])
+            monster['hp'] -= dmg
+            msg = f"Tu uzbruki un nodarīji {dmg} damage"
+            if crit:
+                msg += " (kritiskais sitiens!)"
+            print(msg)
+        
+        elif action == "defense":
+            defending = True
+            print("Tu sagatavojies aizsardzībai.")
+        
+        elif action == "item":
+            # Simple heal
+            heal = 10
+            player['hp'] = min(player['max_hp'], player['hp'] + heal)
+            print(f"Tu izmantoji priekšmetu un atguvi {heal} HP.")
+        
+        elif action == "quit" or action == "iziet":
+            print("Tu izlēmi iziet no spēles.")
+            player['hp'] = 0  # Force game over
+            return False
+        
+        else:
+            print("Nepareiza izvēle! Pamēģini vēlreiz.")
+            time.sleep(1)
+            continue
+        
+        time.sleep(1)
+        
+        # Monster turn
+        if monster['hp'] > 0:
+            def_mod = player.get('defense', 0)
+            if defending:
+                def_mod += 5  # Bonus defense when defending
+                defending = False
+            dmg, crit = final_damage(monster['attack'], def_mod)
+            player['hp'] -= dmg
+            msg = f"{monster['name']} uzbruka un nodarīja {dmg} damage"
+            if crit:
+                msg += " (kritiskais sitiens!)"
+            print(msg)
+            time.sleep(1)
+    
+    if player['hp'] > 0:
+        print(f"\nTu uzvareji {monster['name']}!")
+        player['xp'] += monster['xp_reward']
+        print(f"Tu ieguvi {monster['xp_reward']} XP. Kopā XP: {player['xp']}")
+        return True
+    else:
+        print(f"\nTu zaudēji pret {monster['name']}.")
+        return False
 
 # ASCII Art for main menu
 CAVE_RUNNER_LOGO = r'''
@@ -78,16 +219,6 @@ def get_player_choice(prompt, valid_options):
         except Exception as e:
             print(f"Notika kļūda: {e}. Mēģini vēlreiz.")
 
-# --- 6. Speciāla Bosa funkcija (vieta tavam/komandas kodam) ---
-def boss_battle(player):
-    clear_screen()
-    print("!!! UZMANĪBU !!!")
-    print("Tu esi sasniedzis 10. istabu. Lielais Boss sēž savā tronī!")
-    time.sleep(2)
-    # Šeit vēlāk tiks izsaukta cīņas loģika no combat_engine.py
-    # Pagaidām simulējam cīņu:
-    return True # Atgriež True, ja uzvar
-
 def show_rules():
     clear_screen()
     print(center_text("=== Spēles noteikumi ==="))
@@ -131,7 +262,11 @@ def start_game():
         "hp": 100,
         "max_hp": 100,
         "str": 10,
-        "room_number": 1 # --- 4. Cīņu skaitītājs ---
+        "room_number": 1, # --- 4. Cīņu skaitītājs ---
+        "level": 1,
+        "xp": 0,
+        "xp_needed": 20,
+        "defense": 2
     }
 
     print("Spēle CAVE RUNNER sākas!")
@@ -143,41 +278,42 @@ def start_game():
 
         # --- 6. 10. istabas pārbaude ---
         if player["room_number"] == 10:
-            won = boss_battle(player)
+            monster = {'name': 'Boss', 'hp': 50, 'attack': 10, 'xp_reward': 20, 'defense': 5}  # Special boss
+            won = run_combat(player, monster)
             if won:
                 print("APSVEICAM! Tu pieveici Bosu un izbēgi no alas!")
                 break
-            # If not won, assume game continues (or add logic to end game)
+            # If not won, continue or end, but since combat handles death, perhaps break if lost
         else:
             print(f"--- ISTABA NR. {player['room_number']} ---")
-            print(f"Tev pretī stājas monstrs!")
-            # Šeit nāks: combat_result = run_battle(player, load_monster())
+            monster = load_monster()
+            print(f"Tev pretī stājas {monster['name']}!")
             time.sleep(1)
-            print("Tu pieveici monstru!") # Simulācija
+            combat_result = run_combat(player, monster)
+            if not combat_result:
+                break  # Player died
 
         # --- 5. Pēc uzvaras piedāvāt izvēlni ---
+        # Check for level up
+        while player['xp'] >= player['xp_needed']:
+            level_up(player)
+
         print("\nKo darīsi tālāk?")
-        print("1. Doties tālāk")
-        print("2. Uzlaboties (Upgrade)")
-
-        # --- 7. & 8. Izmanto drošo ievadi ---
-        choice = get_player_choice("Tava izvēle (1 vai 2): ", ["1", "2"])
-
-        if choice == "2":
-            clear_screen()
-            print("--- UPGRADE MENU ---")
-            print("1. +20 HP")
-            print("2. +5 Strength")
-            upg = get_player_choice("Izvēlies uzlabojumu (1 vai 2): ", ["1", "2"])
-
-            if upg == "1":
-                player["max_hp"] += 20
-                player["hp"] = player["max_hp"]
-                print("Dzīvības palielinātas!")
-            else:
-                player["str"] += 5
-                print("Spēks palielināts!")
-            time.sleep(1)
+        if player['xp'] >= player['xp_needed']:
+            print("1. Doties tālāk")
+            print("2. Uzlaboties (Upgrade)")
+            print("3. Iziet")
+            choice = get_player_choice("Tava izvēle (1, 2 vai 3): ", ["1", "2", "3"])
+            if choice == "2":
+                level_up(player)
+            elif choice == "3":
+                break
+        else:
+            print("1. Doties tālāk")
+            print("2. Iziet")
+            choice = get_player_choice("Tava izvēle (1 vai 2): ", ["1", "2"])
+            if choice == "2":
+                break
 
         # Palielinām istabu skaitu pēc izvēles
         player["room_number"] += 1
