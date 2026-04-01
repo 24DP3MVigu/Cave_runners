@@ -41,24 +41,31 @@ def final_damage(attacker_attack, defender_defense):
 
 # Load monsters
 MONSTERS = []
-with open('../caverunnerniks/monsters.csv', 'r') as f:
+with open('monsters.csv', 'r') as f:
     reader = csv.DictReader(f)
     for row in reader:
         MONSTERS.append({
             'name': row['name'],
             'hp': int(row['hp']),
             'attack': int(row['attack']),
-            'xp_reward': int(row['xp_reward']),
-            'defense': 0  # Assume 0 defense for monsters
+            'defense': int(row['defense']),
+            'xp_reward': int(row['xp_reward'])
         })
 
 def load_monster():
-    return random.choice(MONSTERS).copy()  # Copy to avoid modifying original
+    monster = random.choice(MONSTERS).copy()  # Copy to avoid modifying original
+    # Load ASCII art if exists
+    try:
+        with open(f'Monstri/{monster["name"]}', 'r', encoding='utf-8') as f:
+            monster['art'] = f.read()
+    except FileNotFoundError:
+        monster['art'] = f'No ASCII art for {monster["name"]}'
+    return monster
 
 def level_up(player):
     print("\n*** LEVEL UP! ***")
     player["level"] += 1
-    player["xp_needed"] += 10  # Increase XP needed for next level
+    player["xp_needed"] += 30  # Increase XP needed for next level
     points = 3
 
     print(f"Tu sasniedzi {player['level']} līmeni!")
@@ -72,7 +79,8 @@ def level_up(player):
         print("quit - Iziet no spēles")
         print(f"Atlikušie punkti: {points}")
 
-        choice = input("Tava izvēle: ").strip().lower()
+        print(center_text("Tava izvēle:"))
+        choice = input('> ').strip().lower()
 
         if choice == "attack":
             player["str"] += 1
@@ -101,6 +109,7 @@ def run_combat(player, monster):
         print(f"--- Cīņa ar {monster['name']} ---")
         print(f"Tavs HP: {player['hp']}/{player['max_hp']} | Spēks: {player['str']} | Aizsardzība: {player.get('defense', 0)}")
         print(f"{monster['name']} HP: {monster['hp']} | Uzbrukums: {monster['attack']}")
+        print(monster['art'])
         print("\nIzvēlies darbību:")
         print("attack - Uzbrukt")
         print("defense - Aizsargāties")
@@ -209,15 +218,13 @@ def clear_screen():
 # --- 7. & 8. Funkcija izvēlēm ar kļūdu apstrādi (try/except) ---
 def get_player_choice(prompt, valid_options):
     while True:
-        try:
-            choice = input(prompt).strip().lower()
-            # Pārbaudām, vai ievade ir sarakstā (piem., "1", "2" vai "start")
-            if choice in valid_options:
-                return choice
-            else:
-                print(f"Nepareiza izvēle! Lūdzu, izvēlies: {', '.join(valid_options)}")
-        except Exception as e:
-            print(f"Notika kļūda: {e}. Mēģini vēlreiz.")
+        print(center_text(prompt))
+        choice = input('> ').strip().lower()
+        # Pārbaudām, vai ievade ir sarakstā (piem., "1", "2" vai "start")
+        if choice in valid_options:
+            return choice
+        else:
+            print(f"Nepareiza izvēle! Lūdzu, izvēlies: {', '.join(valid_options)}")
 
 def show_rules():
     clear_screen()
@@ -242,7 +249,8 @@ def show_main_menu():
         print(center_text('QUIT - Iziet'))
         print('=' * TERMINAL_WIDTH)
         
-        choice = input(center_text('Tava izvēle: ')).strip().lower()
+        print(center_text('Tava izvēle:'))
+        choice = input('> ').strip().lower()
         if choice == "start":
             return
         elif choice == "rules":
@@ -287,7 +295,8 @@ def start_game():
         else:
             print(f"--- ISTABA NR. {player['room_number']} ---")
             monster = load_monster()
-            print(f"Tev pretī stājas {monster['name']}!")
+            print(f"Tu cīnies ar {monster['name']}!")
+            print(monster['art'])
             time.sleep(1)
             combat_result = run_combat(player, monster)
             if not combat_result:
