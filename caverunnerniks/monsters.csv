@@ -1,0 +1,4 @@
+name,hp,attack,xp_reward
+Goblin,15,3,2
+Skeleton,20,4,5
+Orc,30,6,10
