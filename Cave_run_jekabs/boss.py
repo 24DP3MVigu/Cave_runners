@@ -1,0 +1,130 @@
+import random
+import math
+
+
+def is_boss_room(room_number: int) -> bool:
+    """Return True if the given room number is a boss room (every 10th room)."""
+    return room_number > 0 and room_number % 10 == 0
+
+
+def _base_stats_for_boss_index(index: int) -> dict:
+    """Base stats that grow modestly with the boss index (1 for 10, 2 for 20, ...)."""
+    # Keep bases conservative so scaling later can tune difficulty
+    return {
+        'hp': 80 + (index - 1) * 40,
+        'attack': 12 + (index - 1) * 5,
+        'defense': 6 + (index - 1) * 3,
+        'xp_reward': 40 + (index - 1) * 20,
+    }
+
+
+def _compute_multipliers(player: dict, room_number: int) -> float:
+    """Compute a combined multiplier from player level, XP, and room index.
+
+    The result aims to scale bosses so they remain challenging but fair:
+    - ~8% stronger per player level
+    - up to ~10% from current XP progress
+    - ~12% per boss milestone (10,20,30...)
+    Multipliers are multiplied together to avoid linear runaway.
+    """
+    level = max(1, int(player.get('level', 1)))
+    xp = max(0, player.get('xp', 0))
+    xp_needed = max(1, player.get('xp_needed', 20))
+    boss_index = max(1, room_number // 10)
+
+    level_mult = 1.0 + (level - 1) * 0.08
+    xp_progress = min(2.0, xp / xp_needed)  # cap contribution from XP
+    xp_mult = 1.0 + (xp_progress * 0.05)
+    room_mult = 1.0 + (boss_index - 1) * 0.12
+
+    return level_mult * xp_mult * room_mult
+
+
+def generate_boss(player: dict, room_number: int) -> dict:
+    """Generate a boss dict scaled to the provided `player` and `room_number`.
+
+    Returned dict matches the shape expected by the game's combat system:
+    { 'name','hp','attack','defense','xp_reward', 'art'(optional) }
+    """
+    if not is_boss_room(room_number):
+        raise ValueError('Room is not a boss room')
+
+    boss_index = max(1, room_number // 10)
+    bases = _base_stats_for_boss_index(boss_index)
+    mult = _compute_multipliers(player, room_number)
+
+    # Apply multiplier and add small random variance for flavor
+    variance = random.uniform(0.92, 1.08)
+
+    hp = max(10, int(bases['hp'] * mult * variance))
+    attack = max(1, int(bases['attack'] * mult * (0.9 + random.random() * 0.3)))
+    defense = max(0, int(bases['defense'] * (0.9 + (mult - 1) * 0.2)))
+    xp_reward = max(5, int(bases['xp_reward'] * (1.0 + (boss_index - 1) * 0.15)))
+
+    name = f"Boss_{boss_index}"
+
+    return {
+        'name': name,
+        'hp': hp,
+        'attack': attack,
+        'defense': defense,
+        'xp_reward': xp_reward,
+    }
+
+
+def boss_special_action(boss: dict, player: dict) -> dict:
+    """Decide a boss special action for a single turn.
+
+    Returns a dict with keys:
+    - 'type': 'attack'|'special'|'defend'
+    - 'value': numeric effect (damage or defense boost)
+    - 'text': short description
+    """
+    boss_power = (boss.get('attack', 10) + boss.get('hp', 50) / 20)
+    p_level = max(1, player.get('level', 1))
+    boss_index = 1
+    try:
+        boss_index = int(boss.get('name', '').split('_')[-1])
+    except Exception:
+        boss_index = 1
+
+    # Probability of special increases slightly with boss index and player level
+    special_chance = min(0.35, 0.08 * boss_index + 0.01 * p_level)
+
+    if random.random() < special_chance:
+        # Choose from charge (high damage) or fortify (boost defense this turn)
+        if random.random() < 0.6:
+            damage = max(1, int(boss_power * random.uniform(1.1, 1.8)))
+            return {
+                'type': 'special',
+                'value': damage,
+                'text': f"{boss['name']} izmanto Īpašo Uzbrukumu un nodara {damage} damage!"
+            }
+        else:
+            buff = max(1, int(boss.get('defense', 0) * random.uniform(0.8, 1.6)))
+            return {
+                'type': 'defend',
+                'value': buff,
+                'text': f"{boss['name']} pastiprina aizsardzību par {buff}!"
+            }
+
+    # Normal attack
+    damage = max(1, int(boss.get('attack', 10) * random.uniform(0.8, 1.25)))
+    return {
+        'type': 'attack',
+        'value': damage,
+        'text': f"{boss['name']} uzbrūk un nodara {damage} damage."
+    }
+
+
+def boss_intro_text(boss: dict) -> str:
+    """Return a short intro string for the boss room."""
+    return f"Tu nonāci boss telpā — {boss.get('name')} parādās!"
+
+
+__all__ = [
+    'is_boss_room',
+    'generate_boss',
+    'boss_special_action',
+    'boss_intro_text',
+]
