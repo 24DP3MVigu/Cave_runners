@@ -1,14 +1,14 @@
 name,hp,attack,defense,xp_reward
-Bluzebleeb,20,6,8,10
-Dinga_Beetle,40,10,12,20
-Gerbee,50,12,10,30
-Goboolin,50,12,10,30
-MEGA_SATAN,50,12,10,30
+Bluzebleeb,20,6,3,10
+Dinga_Beetle,30,10,2,20
+Gerbee,35,8,16,30
+Goboolin,25,15,5,30
+MEGA_SATAN,50,15,6,60
 Polaburrr,50,12,10,30
-Sealed_Elemental,50,12,10,30
-SPIDER_HEAD,50,12,10,30
-SPIKEY_HEART,50,12,10,30
-Trolgre,50,12,10,30
-Turtloid,50,12,10,30
-Tyrantula,50,12,10,30
+Sealed_Elemental,26,6,8,30
+SPIDER_HEAD,50,15,6,60
+SPIKEY_HEART,50,15,6,60
+Trolgre,30,10,5,30
+Turtloid,1,60,0,30
+Tyrantula,30,10,5,30
 
