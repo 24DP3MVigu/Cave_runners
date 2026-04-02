@@ -3,12 +3,15 @@ import time
 import sys
 import csv
 import random
+from boss import is_boss_room, generate_boss, boss_intro_text, boss_special_action
 
 try:
     TERMINAL_WIDTH = os.get_terminal_size().columns
 except OSError:
     TERMINAL_WIDTH = 80  # Default fallback
 
+# Base directory for data files (ensures script works when run from any cwd)
+BASE_DIR = os.path.dirname(__file__)
 def center_text(text):
     return text.center(TERMINAL_WIDTH)
 
@@ -41,22 +44,49 @@ def final_damage(attacker_attack, defender_defense):
 
 # Load monsters
 MONSTERS = []
-with open('monsters.csv', 'r') as f:
-    reader = csv.DictReader(f)
-    for row in reader:
-        MONSTERS.append({
-            'name': row['name'],
-            'hp': int(row['hp']),
-            'attack': int(row['attack']),
-            'defense': int(row['defense']),
-            'xp_reward': int(row['xp_reward'])
-        })
+monsters_csv = os.path.join(BASE_DIR, 'monsters.csv')
+try:
+    with open(monsters_csv, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                MONSTERS.append({
+                    'name': row['name'],
+                    'hp': int(row['hp']),
+                    'attack': int(row['attack']),
+                    'defense': int(row['defense']),
+                    'xp_reward': int(row['xp_reward'])
+                })
+            except Exception:
+                # Skip malformed rows
+                continue
+except FileNotFoundError:
+    print(f"Error: monsters.csv not found at {monsters_csv}")
+    sys.exit(1)
+except Exception as e:
+    print(f"Error loading monsters.csv: {e}")
+    sys.exit(1)
 
-def load_monster():
-    monster = random.choice(MONSTERS).copy()  # Copy to avoid modifying original
+def load_monster(boss: bool = False):
+    """Return a monster template.
+
+    - If boss=True, select only monsters whose `name` is ALL CAPS (used for boss ASCII art).
+    - If boss=False, select only monsters not in all caps.
+    If no candidates found, fall back to the full list.
+    """
+    if boss:
+        candidates = [m for m in MONSTERS if m.get('name', '').isupper()]
+    else:
+        candidates = [m for m in MONSTERS if not m.get('name', '').isupper()]
+
+    if not candidates:
+        candidates = MONSTERS
+
+    monster = random.choice(candidates).copy()  # Copy to avoid modifying original
     # Load ASCII art if exists
+    art_path = os.path.join(BASE_DIR, 'Monstri', monster['name'])
     try:
-        with open(f'Monstri/{monster["name"]}', 'r', encoding='utf-8') as f:
+        with open(art_path, 'r', encoding='utf-8') as f:
             monster['art'] = f.read()
     except FileNotFoundError:
         monster['art'] = f'No ASCII art for {monster["name"]}'
@@ -68,7 +98,13 @@ def level_up(player):
     player["xp_needed"] += 30  # Increase XP needed for next level
     points = 3
 
-    print(f"Tu sasniedzi {player['level']} līmeni!")
+    # Big level-up banner (similar style to boss victory)
+    print('\n' + '=' * TERMINAL_WIDTH)
+    print(center_text(f"APSVEICAM! Tu sasniedzi {player['level']} līmeni!"))
+    print(center_text('Tu vari turpināt ceļu pa alu vai iziet.'))
+    print('=' * TERMINAL_WIDTH + '\n')
+    time.sleep(1.5)
+
     print(f"Tev ir {points} atribūtu punkti ko sadalīt.")
 
     while points > 0:
@@ -148,19 +184,38 @@ def run_combat(player, monster):
         
         time.sleep(1)
         
-        # Monster turn
+        # Monster (or boss) turn
         if monster['hp'] > 0:
             def_mod = player.get('defense', 0)
             if defending:
                 def_mod += 5  # Bonus defense when defending
                 defending = False
-            dmg, crit = final_damage(monster['attack'], def_mod)
-            player['hp'] -= dmg
-            msg = f"{monster['name']} uzbruka un nodarīja {dmg} damage"
-            if crit:
-                msg += " (kritiskais sitiens!)"
-            print(msg)
-            time.sleep(1)
+
+            if monster.get('is_boss'):
+                action = boss_special_action(monster, player)
+                # Show action text when available
+                if action.get('text'):
+                    print(action['text'])
+
+                if action['type'] in ('attack', 'special'):
+                    # Boss special/attack provides direct damage value
+                    dmg = int(action.get('value', 0))
+                    player['hp'] -= dmg
+                    print(f"{monster['name']} nodarīja {dmg} damage.")
+                elif action['type'] == 'defend':
+                    # Temporary buff: add to boss defense for next turn
+                    buff = int(action.get('value', 0))
+                    monster['defense'] = monster.get('defense', 0) + buff
+                    print(f"{monster['name']} aizsardzība pieauga par {buff} (pagaidu).")
+                time.sleep(1)
+            else:
+                dmg, crit = final_damage(monster['attack'], def_mod)
+                player['hp'] -= dmg
+                msg = f"{monster['name']} uzbruka un nodarīja {dmg} damage"
+                if crit:
+                    msg += " (kritiskais sitiens!)"
+                print(msg)
+                time.sleep(1)
     
     if player['hp'] > 0:
         print(f"\nTu uzvareji {monster['name']}!")
@@ -284,14 +339,35 @@ def start_game():
     while player["hp"] > 0:
         clear_screen()
 
-        # --- 6. 10. istabas pārbaude ---
-        if player["room_number"] == 10:
-            monster = {'name': 'Boss', 'hp': 50, 'attack': 10, 'xp_reward': 20, 'defense': 5}  # Special boss
+        # --- 6. Boss room check ---
+        if is_boss_room(player["room_number"]):
+            # Choose a boss template from ALL-CAPS names and load its art
+            template = load_monster(boss=True)
+            # Generate boss stats (now based on base boss index, no player multipliers)
+            generated = generate_boss(player, player["room_number"])
+            # Merge generated stats with the template name and art
+            generated['name'] = template.get('name', generated.get('name'))
+            generated['art'] = template.get('art', generated.get('art', f"No ASCII art for {generated.get('name')}") )
+            generated['is_boss'] = True
+            monster = generated
+            # Big boss intro banner
+            print('=' * TERMINAL_WIDTH)
+            print(center_text('!!! BOSS ENCOUNTER !!!'))
+            print(center_text(boss_intro_text(monster)))
+            print('=' * TERMINAL_WIDTH)
+            time.sleep(1)
             won = run_combat(player, monster)
-            if won:
-                print("APSVEICAM! Tu pieveici Bosu un izbēgi no alas!")
+            # If player died during boss, end the run
+            if player.get('hp', 0) <= 0:
+                print("Tu nomiri kaujā. Spēle beigusies.")
                 break
-            # If not won, continue or end, but since combat handles death, perhaps break if lost
+            # On boss victory, show a larger congratulatory banner but allow continuing
+            if won:
+                print('\n' + '=' * TERMINAL_WIDTH)
+                print(center_text('APSVEICAM! Tu pieveici Bosu!'))
+                print(center_text('Tu vari turpināt ceļu pa alu vai iziet.'))
+                print('=' * TERMINAL_WIDTH + '\n')
+                time.sleep(2)
         else:
             print(f"--- ISTABA NR. {player['room_number']} ---")
             monster = load_monster()

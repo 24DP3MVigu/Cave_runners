@@ -51,15 +51,14 @@ def generate_boss(player: dict, room_number: int) -> dict:
 
     boss_index = max(1, room_number // 10)
     bases = _base_stats_for_boss_index(boss_index)
-    mult = _compute_multipliers(player, room_number)
 
-    # Apply multiplier and add small random variance for flavor
-    variance = random.uniform(0.92, 1.08)
+    # Use base stats only (no player/XP multipliers). Add only light random variance.
+    variance = random.uniform(0.96, 1.04)
 
-    hp = max(10, int(bases['hp'] * mult * variance))
-    attack = max(1, int(bases['attack'] * mult * (0.9 + random.random() * 0.3)))
-    defense = max(0, int(bases['defense'] * (0.9 + (mult - 1) * 0.2)))
-    xp_reward = max(5, int(bases['xp_reward'] * (1.0 + (boss_index - 1) * 0.15)))
+    hp = max(10, int(bases['hp'] * variance))
+    attack = max(1, int(bases['attack'] * (0.95 + random.random() * 0.1)))
+    defense = max(0, int(bases['defense'] * (0.95 + random.random() * 0.1)))
+    xp_reward = max(5, int(bases['xp_reward']))
 
     name = f"Boss_{boss_index}"
 
