@@ -23,6 +23,22 @@ def center_ascii(text):
             centered_lines.append('')
     return '\n'.join(centered_lines)
 
+def display_hp_bar(current, max_hp, label="HP"):
+    percentage = current / max_hp if max_hp > 0 else 0
+    bar_length = 20
+    filled = int(percentage * bar_length)
+    bar = '█' * filled + '░' * (bar_length - filled)
+    
+    if percentage > 0.6:
+        color = '\033[92m'  # green
+    elif percentage > 0.3:
+        color = '\033[93m'  # yellow
+    else:
+        color = '\033[91m'  # red
+    
+    reset = '\033[0m'
+    print(f"{label}: {color}{bar}{reset} {current}/{max_hp}")
+
 # Damage calculation functions
 def calculate_damage(attacker_attack, defender_defense):
     damage = attacker_attack - (defender_defense / 2)
@@ -41,7 +57,7 @@ def final_damage(attacker_attack, defender_defense):
 
 # Load monsters
 MONSTERS = []
-with open('monsters.csv', 'r') as f:
+with open(os.path.join(os.path.dirname(__file__), 'monsters.csv'), 'r') as f:
     reader = csv.DictReader(f)
     for row in reader:
         MONSTERS.append({
@@ -54,9 +70,10 @@ with open('monsters.csv', 'r') as f:
 
 def load_monster():
     monster = random.choice(MONSTERS).copy()  # Copy to avoid modifying original
+    monster['max_hp'] = monster['hp']  # Store initial HP for bar display
     # Load ASCII art if exists
     try:
-        with open(f'Monstri/{monster["name"]}', 'r', encoding='utf-8') as f:
+        with open(os.path.join(os.path.dirname(__file__), 'Monstri', monster["name"]), 'r', encoding='utf-8') as f:
             monster['art'] = f.read()
     except FileNotFoundError:
         monster['art'] = f'No ASCII art for {monster["name"]}'
@@ -107,8 +124,10 @@ def run_combat(player, monster):
     while player['hp'] > 0 and monster['hp'] > 0:
         clear_screen()
         print(f"--- Cīņa ar {monster['name']} ---")
-        print(f"Tavs HP: {player['hp']}/{player['max_hp']} | Spēks: {player['str']} | Aizsardzība: {player.get('defense', 0)}")
-        print(f"{monster['name']} HP: {monster['hp']} | Uzbrukums: {monster['attack']}")
+        display_hp_bar(player['hp'], player['max_hp'], "Tavs HP")
+        print(f"Spēks: {player['str']} | Aizsardzība: {player.get('defense', 0)}")
+        display_hp_bar(monster['hp'], monster['max_hp'], f"{monster['name']} HP")
+        print(f"Uzbrukums: {monster['attack']}")
         print(monster['art'])
         print("\nIzvēlies darbību:")
         print("attack - Uzbrukt")
@@ -286,7 +305,7 @@ def start_game():
 
         # --- 6. 10. istabas pārbaude ---
         if player["room_number"] == 10:
-            monster = {'name': 'Boss', 'hp': 50, 'attack': 10, 'xp_reward': 20, 'defense': 5}  # Special boss
+            monster = {'name': 'Boss', 'hp': 50, 'max_hp': 50, 'attack': 10, 'xp_reward': 20, 'defense': 5}  # Special boss
             won = run_combat(player, monster)
             if won:
                 print("APSVEICAM! Tu pieveici Bosu un izbēgi no alas!")
@@ -330,7 +349,25 @@ def start_game():
         time.sleep(1.5)
 
     if player["hp"] <= 0:
-        print("\nTu esi miris. Spēle beigusies.")
+        gameover_path = os.path.join(os.path.dirname(__file__), '..', 'gameover.txt')
+        try:
+            with open(gameover_path, 'r') as f:
+                gameover_art = f.read()
+            print(center_ascii(gameover_art))
+        except FileNotFoundError:
+            print(center_text("GAME OVER"))
+        
+        while True:
+            print(center_text("Vai vēlies spēlēt vēlreiz? (j/n)"))
+            choice = input('> ').strip().lower()
+            if choice == 'j':
+                start_game()
+                return
+            elif choice == 'n':
+                print(center_text("Paldies par spēlēšanu!"))
+                sys.exit(0)
+            else:
+                print(center_text("Nepareiza izvēle! Ievadi 'j' vai 'n'."))
 
 if __name__ == "__main__":
     start_game()
