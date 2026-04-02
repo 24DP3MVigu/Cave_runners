@@ -116,11 +116,12 @@ def load_monster(boss: bool = False):
     # Load ASCII art if exists
     art_path = os.path.join(BASE_DIR, 'Monstri', monster['name'])
     try:
-        with open(os.path.join(os.path.dirname(__file__), 'Monstri', monster["name"]), 'r', encoding='utf-8') as f:
         with open(art_path, 'r', encoding='utf-8') as f:
             monster['art'] = f.read()
     except FileNotFoundError:
         monster['art'] = f'No ASCII art for {monster["name"]}'
+    # Ensure a max_hp field for HP bar display
+    monster['max_hp'] = monster.get('hp', 0)
     return monster
 
 def level_up(player):
@@ -384,6 +385,8 @@ def start_game():
             # Merge generated stats with the template name and art
             generated['name'] = template.get('name', generated.get('name'))
             generated['art'] = template.get('art', generated.get('art', f"No ASCII art for {generated.get('name')}") )
+            # Ensure max_hp present for HP bar display
+            generated['max_hp'] = generated.get('hp', generated.get('max_hp', 0))
             generated['is_boss'] = True
             monster = generated
             # Big boss intro banner
