@@ -445,11 +445,11 @@ def start_game():
         time.sleep(1.5)
 
     if player["hp"] <= 0:
-        gameover_path = os.path.join(os.path.dirname(__file__), '..', 'gameover.txt')
+        gameover_path = os.path.join(os.path.dirname(__file__), 'gameover.txt')
         try:
-            with open(gameover_path, 'r') as f:
+            with open(gameover_path, 'r', encoding='utf-8') as f:
                 gameover_art = f.read()
-            print(center_ascii(gameover_art))
+            print(gameover_art)
         except FileNotFoundError:
             print(center_text("GAME OVER"))
         
