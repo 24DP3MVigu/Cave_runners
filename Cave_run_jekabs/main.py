@@ -76,6 +76,71 @@ def print_centered(text):
         print(center_text(line))
 
 
+ATTACK_POTION_KEY = 'attack_potion'
+EXTRA_LIFE_KEY = 'extra_life'
+TELEPORT_KEY = 'potion_teleportation'
+FLASHBANG_KEY = '404_flashbang'
+
+ITEMS_DIR = os.path.join(BASE_DIR, 'Items')
+
+ITEMS = {
+    ATTACK_POTION_KEY: {
+        'name': 'Attack Potion',
+        'description': 'Pievieno papildu spēku nākamajai istabai. Darbojas vienu cīņu.',
+        'art_file': 'Attack_Potion.txt',
+        'drop_chance': 0.40,
+        'combat_usable': False,
+        'outside_usable': True,
+    },
+    EXTRA_LIFE_KEY: {
+        'name': 'Extra Life',
+        'description': 'Atjauno 50% no Tava maksimālā HP uzreiz.',
+        'art_file': 'Extra_Life.txt',
+        'drop_chance': 0.40,
+        'combat_usable': False,
+        'outside_usable': True,
+    },
+    TELEPORT_KEY: {
+        'name': 'Potion of Teleportion',
+        'description': 'Izmet tevi cauri nākamajai istabai. Nav efekta pret bosa istabām.',
+        'art_file': 'Potion_of_teleportion.txt',
+        'drop_chance': 0.20,
+        'combat_usable': False,
+        'outside_usable': True,
+    },
+    FLASHBANG_KEY: {
+        'name': '404 Flashbang',
+        'description': 'Piespiež ienaidnieku palaist garām 2 gājienus un samazina tā precizitāti.',
+        'art_file': 'flashbang.txt',
+        'drop_chance': 0.45,
+        'combat_usable': True,
+        'outside_usable': False,
+    },
+}
+
+ITEM_ORDER = [
+    ATTACK_POTION_KEY,
+    EXTRA_LIFE_KEY,
+    TELEPORT_KEY,
+    FLASHBANG_KEY,
+]
+
+ITEM_ALIASES = {
+    'attack potion': ATTACK_POTION_KEY,
+    'attack': ATTACK_POTION_KEY,
+    'potion': ATTACK_POTION_KEY,
+    'extra life': EXTRA_LIFE_KEY,
+    'life': EXTRA_LIFE_KEY,
+    'extra': EXTRA_LIFE_KEY,
+    'teleport': TELEPORT_KEY,
+    'teleportation': TELEPORT_KEY,
+    'potion teleportation': TELEPORT_KEY,
+    'flashbang': FLASHBANG_KEY,
+    '404 flashbang': FLASHBANG_KEY,
+    '404': FLASHBANG_KEY,
+}
+
+
 def color_text(text, color, bold=False):
     if not color:
         return str(text)
@@ -83,8 +148,27 @@ def color_text(text, color, bold=False):
     return f"{prefix}{text}{RESET}"
 
 
-def print_action_menu():
-    menu_width = min(70, max(40, get_terminal_width() - 16))
+def get_item_count(player, item_key):
+    return player.get('items', {}).get(item_key, 0)
+
+
+def get_item_display_name(item_key):
+    return ITEMS.get(item_key, {}).get('name', item_key)
+
+
+def load_item_art(item_key):
+    info = ITEMS.get(item_key, {})
+    art_path = os.path.join(ITEMS_DIR, info.get('art_file', ''))
+    try:
+        with open(art_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        return f'No art for {info.get("name", item_key)}'
+
+
+def print_action_menu(player=None):
+    player = player or {}
+    menu_width = min(80, max(50, get_terminal_width() - 16))
     top = '╔' + '═' * (menu_width - 2) + '╗'
     sep = '╟' + '─' * (menu_width - 2) + '╢'
     bot = '╚' + '═' * (menu_width - 2) + '╝'
@@ -99,12 +183,188 @@ def print_action_menu():
     print_centered(color_text('   🛡 Paaugstini bruņojumu un samazini iegūto damage.', DIM))
     print_centered(sep)
     print_centered(color_text(' item ', BLUE, bold=True) + color_text(' - Izmantot priekšmetu', WHITE))
-    print_centered(color_text('   ✨ Atgūsti dzīvību vai izmanto īpašu spēku.', DIM))
+    for item_key in ITEM_ORDER:
+        count = get_item_count(player, item_key)
+        print_centered(color_text(f"   {ITEMS[item_key]['name']}: {count} vienības", DIM))
+    print_centered(color_text('   ✨ Izmanto priekšmetus, lai iegūtu pārsvaru kaujā.', DIM))
     print_centered(sep)
     print_centered(color_text(' quit ', RED, bold=True) + color_text(' - Iziet no spēles', WHITE))
     print_centered(color_text('   ⛔ Pamet kauju un atgriezies galvenajā izvēlnē.', DIM))
     print_centered(bot)
     print()
+
+
+def show_inventory_status(player):
+    print_centered(color_text('=== INVENTĀRS ===', YELLOW, bold=True))
+    for item_key in ITEM_ORDER:
+        count = get_item_count(player, item_key)
+        name = ITEMS[item_key]['name']
+        description = ITEMS[item_key]['description']
+        if count > 0:
+            print_centered(color_text(f"{name}: {count} vienības", CYAN, bold=True))
+            print_centered(color_text(f"   {description}", DIM))
+        else:
+            print_centered(color_text(f"{name}: 0 vienības", RED, bold=True))
+            print_centered(color_text(f"   {description}", DIM))
+    print()
+
+
+def use_flashbang(player, monster):
+    count = get_item_count(player, FLASHBANG_KEY)
+    if count <= 0:
+        print_centered(color_text(f"Nav {ITEMS[FLASHBANG_KEY]['name']}.", RED, bold=True))
+        return False
+
+    player['items'][FLASHBANG_KEY] -= 1
+    print_centered(color_text("[!] 404 ERROR: Enemy's target coordinates not found!", YELLOW, bold=True))
+    monster['accuracy'] = 0.4
+    monster['accuracy_duration'] = 2
+    print_centered(color_text("Enemy accuracy dropped severely for 2 turns.", MAGENTA))
+
+    if random.random() < 0.8:
+        monster['flinch'] = 2
+        print_centered(color_text("Enemy flinched and will skip its turn for 2 rounds!", MAGENTA, bold=True))
+    else:
+        print_centered(color_text("Enemy resisted the flinch but is still disoriented.", YELLOW))
+
+    if random.random() < 0.05:
+        player['blind_turns'] = 2
+        player['accuracy'] = 0.7
+        print_centered(color_text("Tu esi mazliet apmaldījies un tava redze pasliktinās!", RED, bold=True))
+    return True
+
+
+def use_attack_potion(player):
+    count = get_item_count(player, ATTACK_POTION_KEY)
+    if count <= 0:
+        print_centered(color_text("Nav Attack Potion tavā inventārā.", RED, bold=True))
+        return False
+    player['items'][ATTACK_POTION_KEY] -= 1
+    player['attack_potion_turns'] = 1
+    print_centered(color_text("Tu uzpildi savu ieroču spēku — nākamā istaba būs mēreni vieglāka!", MAGENTA, bold=True))
+    return True
+
+
+def use_extra_life(player):
+    count = get_item_count(player, EXTRA_LIFE_KEY)
+    if count <= 0:
+        print_centered(color_text("Nav Extra Life tavā inventārā.", RED, bold=True))
+        return False
+    player['items'][EXTRA_LIFE_KEY] -= 1
+    heal_amount = max(1, int(player['max_hp'] * 0.5))
+    previous_hp = player['hp']
+    player['hp'] = min(player['max_hp'], player['hp'] + heal_amount)
+    print_centered(color_text(f"Extra Life atjaunoja {player['hp'] - previous_hp} HP!", GREEN, bold=True))
+    return True
+
+
+def use_teleport(player):
+    count = get_item_count(player, TELEPORT_KEY)
+    if count <= 0:
+        print_centered(color_text("Nav Potion of Teleportion tavā inventārā.", RED, bold=True))
+        return False
+    if is_boss_room(player['room_number']):
+        print_centered(color_text("Potion of Teleportion nedarbojas bosa istabā.", RED, bold=True))
+        return False
+    player['items'][TELEPORT_KEY] -= 1
+    player['room_number'] += 1
+    print_centered(color_text("Tu izteleportējies uz nākamo istabu!", CYAN, bold=True))
+    return True
+
+
+def show_item_detail(player, item_key, in_combat=False, monster=None):
+    clear_screen()
+    item = ITEMS[item_key]
+    print_centered(color_text(item['name'], YELLOW, bold=True))
+    print_centered(color_text(item['description'], WHITE))
+    print()
+    print(render_ascii_art(load_item_art(item_key), max_width=min(get_terminal_width(), 60)))
+    print()
+    count = get_item_count(player, item_key)
+    if count <= 0:
+        print_centered(color_text("Nav šo priekšmetu inventārā.", RED, bold=True))
+        print(center_text("Nospied Enter, lai atgrieztos."))
+        input(center_prompt(''))
+        return None
+
+    if item_key == FLASHBANG_KEY and not in_combat:
+        print_centered(color_text("Šo priekšmetu var izmantot tikai kaujā.", RED, bold=True))
+        print(center_text("Nospied Enter, lai atgrieztos."))
+        input(center_prompt(''))
+        return None
+
+    if item_key == ATTACK_POTION_KEY:
+        if use_attack_potion(player):
+            print(center_text("Nospied Enter, lai atgrieztos."))
+            input(center_prompt(''))
+            return 'used'
+    elif item_key == EXTRA_LIFE_KEY:
+        if use_extra_life(player):
+            print(center_text("Nospied Enter, lai atgrieztos."))
+            input(center_prompt(''))
+            return 'used'
+    elif item_key == TELEPORT_KEY:
+        if in_combat:
+            print_centered(color_text("Potion of Teleportion nav izmantojama kaujā.", RED, bold=True))
+            print(center_text("Nospied Enter, lai atgrieztos."))
+            input(center_prompt(''))
+        elif use_teleport(player):
+            print(center_text("Nospied Enter, lai turpinātu."))
+            input(center_prompt(''))
+            return 'teleported'
+    elif item_key == FLASHBANG_KEY:
+        if in_combat:
+            if use_flashbang(player, monster):
+                print(center_text("Nospied Enter, lai turpinātu."))
+                input(center_prompt(''))
+                return 'used'
+        else:
+            print_centered(color_text("Šis priekšmets var tikt izmantots tikai kaujā.", RED, bold=True))
+            print(center_text("Nospied Enter, lai atgrieztos."))
+            input(center_prompt(''))
+    return None
+
+
+def show_items_catalog(player, in_combat=False, monster=None):
+    while True:
+        clear_screen()
+        print_centered(color_text('=== PRIEKŠMETU KATALOGS ===', YELLOW, bold=True))
+        print()
+        for index, item_key in enumerate(ITEM_ORDER, start=1):
+            item = ITEMS[item_key]
+            count = get_item_count(player, item_key)
+            label = f"{index}. {item['name']} ({count} vienības)"
+            print_centered(color_text(label, CYAN if count > 0 else RED))
+            print_centered(color_text(f"   {item['description']}", DIM))
+            print()
+        print_centered(color_text("Ievadi numuru vai priekšmeta nosaukumu, lai apskatītu/darbotos ar to.", WHITE))
+        print_centered(color_text("Raksti 'back' vai 'atpakaļ' lai atgrieztos.", DIM))
+        choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+        if choice in ('back', 'atpakaļ', 'atpakal'):
+            return None
+        if choice.isdigit() and 1 <= int(choice) <= len(ITEM_ORDER):
+            item_key = ITEM_ORDER[int(choice) - 1]
+        else:
+            item_key = ITEM_ALIASES.get(choice)
+        if not item_key or item_key not in ITEMS:
+            print_centered(color_text('Nepareiza izvēle! Mēģini vēlreiz.', RED))
+            time.sleep(1)
+            continue
+        result = show_item_detail(player, item_key, in_combat=in_combat, monster=monster)
+        if result == 'teleported':
+            return 'teleported'
+        if result == 'used':
+            return 'used'
+        if in_combat:
+            return None
+
+
+def award_item_drops(player):
+    for item_key, info in ITEMS.items():
+        if random.random() < info.get('drop_chance', 0):
+            player['items'][item_key] = player['items'].get(item_key, 0) + 1
+            print_centered(color_text(f"{info['name']} nomesta! Tev tagad ir {player['items'][item_key]}.", CYAN))
+            time.sleep(1)
 
 
 def scale_ascii_art(text, max_width=None, max_height=None, allow_expand=False):
@@ -247,6 +507,12 @@ def load_monster(boss: bool = False):
         candidates = MONSTERS
 
     monster = random.choice(candidates).copy()  # Copy to avoid modifying original
+    monster['accuracy'] = 1.0
+    monster['accuracy_duration'] = 0
+    monster['flinch'] = 0
+    monster['accuracy'] = 1.0
+    monster['accuracy_duration'] = 0
+    monster['flinch'] = 0
     # Load ASCII art if exists
     art_path = os.path.join(BASE_DIR, 'Monstri', monster['name'])
     try:
@@ -259,30 +525,43 @@ def load_monster(boss: bool = False):
     return monster
 
 def level_up(player):
-    print("\n*** LEVEL UP! ***")
     player["level"] += 1
     player["xp_needed"] += 30  # Increase XP needed for next level
     points = 3
 
-    # Big level-up banner (similar style to boss victory)
-    print('\n' + '=' * get_terminal_width())
-    print(center_text(f"APSVEICAM! Tu sasniedzi {player['level']} līmeni!"))
-    print(center_text('Tu vari turpināt ceļu pa alu vai iziet.'))
-    print('=' * get_terminal_width() + '\n')
-    time.sleep(1.5)
+    # Big level-up banner with polished layout
+    width = get_terminal_width()
+    box_width = min(80, max(50, width - 10))
+    border_top = '╔' + '═' * (box_width - 2) + '╗'
+    border_mid = '╠' + '═' * (box_width - 2) + '╣'
+    border_bot = '╚' + '═' * (box_width - 2) + '╝'
 
-    print(f"Tev ir {points} atribūtu punkti ko sadalīt.")
+    print()
+    print(center_text(color_text(border_top, CYAN)))
+    print(center_text(color_text('★ ' + 'LEVEL UP!'.center(box_width - 6) + ' ★', YELLOW, bold=True)))
+    print(center_text(color_text(border_mid, CYAN)))
+    print(center_text(color_text(f"APSVEICAM! Tu sasniedzi {player['level']} līmeni!", GREEN, bold=True)))
+    print(center_text(color_text('Tu vari turpināt ceļu pa alu vai iziet.', WHITE)))
+    print(center_text(color_text(border_bot, CYAN)))
+    print()
+    time.sleep(2)
+
+    print(center_text(color_text(f"Tev ir {points} atribūtu punkti ko sadalīt.", MAGENTA, bold=True)))
+    print(center_text(color_text('Izvēlies rūpīgi — katrs punkts padara tevi spēcīgāku.', DIM)))
+    print()
 
     while points > 0:
-        print("\nIzvēlies, kur ieguldīt punktu:")
-        print("attack - Uzbrukums (+1)")
-        print("defense - Aizsardzība (+1)")
-        print("max_health - Maksimālais HP (+5)")
-        print("quit - Iziet no spēles")
-        print(f"Atlikušie punkti: {points}")
+        print()
+        print(center_text(color_text('Izvēlies, kur ieguldīt punktu:', CYAN, bold=True)))
+        print(center_text(color_text('attack', YELLOW, bold=True) + color_text(' - Uzbrukums (+1)', WHITE)))
+        print(center_text(color_text('defense', MAGENTA, bold=True) + color_text(' - Aizsardzība (+1)', WHITE)))
+        print(center_text(color_text('max_health', BLUE, bold=True) + color_text(' - Maksimālais HP (+5)', WHITE)))
+        print(center_text(color_text('quit', RED, bold=True) + color_text(' - Iziet no spēles', WHITE)))
+        print(center_text(color_text(f'Atlikušie punkti: {points}', GREEN, bold=True)))
+        print()
 
-        print(center_text("Tava izvēle:"))
-        choice = input(center_prompt('> ')).strip().lower()
+        print(center_text(color_text('Tava izvēle:', GREEN, bold=True)))
+        choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
 
         if choice == "attack":
             player["str"] += 1
@@ -314,27 +593,47 @@ def run_combat(player, monster):
         display_hp_bar(monster['hp'], monster['max_hp'], f"{monster['name']} HP", centered=True)
         print_centered(color_text(f"Uzbrukums: {monster['attack']}", MAGENTA, bold=True))
         print(render_ascii_art(monster['art']))
-        print_action_menu()
+        print_action_menu(player)
         print_centered(color_text('Tava izvēle:', GREEN, bold=True))
         action = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
         
         if action == "attack":
-            dmg, crit = final_damage(player['str'], monster['defense'])
-            monster['hp'] -= dmg
-            msg = f"Tu uzbruki un nodarīji {dmg} damage"
-            if crit:
-                msg += " (kritiskais sitiens!)"
-            print_centered(color_text(msg, GREEN))
+            if player.get('accuracy', 1.0) < 1.0 and random.random() > player.get('accuracy', 1.0):
+                print_centered(color_text("Tu palaidi garām, jo tevi apžilbināja informācijas mākoņi!", RED))
+            else:
+                attack_bonus = 5 if player.get('attack_potion_turns', 0) > 0 else 0
+                dmg, crit = final_damage(player['str'] + attack_bonus, monster['defense'])
+                monster['hp'] -= dmg
+                msg = f"Tu uzbruki un nodarīji {dmg} damage"
+                if crit:
+                    msg += " (kritiskais sitiens!)"
+                if attack_bonus > 0:
+                    msg += " (Attack Potion bonus!)"
+                print_centered(color_text(msg, GREEN))
+            if player.get('attack_potion_turns', 0) > 0:
+                print_centered(color_text('Attack Potion efektu joprojām izmanto kaujas laikā.', DIM))
+            if player.get('blind_turns', 0) > 0:
+                player['blind_turns'] -= 1
+                if player['blind_turns'] == 0:
+                    player['accuracy'] = 1.0
+                    print_centered(color_text("Tava redze atgriežas normālā stāvoklī.", GREEN))
         
         elif action == "defense":
             defending = True
             print_centered(color_text("Tu sagatavojies aizsardzībai.", YELLOW))
         
         elif action == "item":
-            # Simple heal
-            heal = 10
-            player['hp'] = min(player['max_hp'], player['hp'] + heal)
-            print_centered(color_text(f"Tu izmantoji priekšmetu un atguvi {heal} HP.", BLUE))
+            result = show_items_catalog(player, in_combat=True, monster=monster)
+            if result == 'used':
+                time.sleep(1)
+                continue
+            if result == 'teleported':
+                print_centered(color_text('Teleportācija ziemā? Šeit nav pieejama.', RED))
+                time.sleep(1)
+                continue
+            print_centered(color_text("Atgriežamies pie kaujas izvēles.", DIM))
+            time.sleep(1)
+            continue
         
         elif action == "quit" or action == "iziet":
             print_centered(color_text("Tu izlēmi iziet no spēles.", RED, bold=True))
@@ -373,18 +672,37 @@ def run_combat(player, monster):
                     print_centered(color_text(f"{monster['name']} aizsardzība pieauga par {buff} (pagaidu).", YELLOW))
                 time.sleep(1)
             else:
-                dmg, crit = final_damage(monster['attack'], def_mod)
-                player['hp'] -= dmg
-                msg = f"{monster['name']} uzbruka un nodarīja {dmg} damage"
-                if crit:
-                    msg += " (kritiskais sitiens!)"
-                print_centered(color_text(msg, RED))
-                time.sleep(1)
+                if monster.get('flinch', 0) > 0:
+                    print_centered(color_text(f"{monster['name']} flinched and skipped its turn!", MAGENTA))
+                    monster['flinch'] -= 1
+                    if monster['flinch'] == 0:
+                        print_centered(color_text(f"{monster['name']} recovers from the confusion.", GREEN))
+                    time.sleep(1)
+                else:
+                    if monster.get('accuracy', 1.0) < 1.0 and random.random() > monster.get('accuracy', 1.0):
+                        print_centered(color_text(f"{monster['name']} failed to find your position and missed!", MAGENTA))
+                    else:
+                        dmg, crit = final_damage(monster['attack'], def_mod)
+                        player['hp'] -= dmg
+                        msg = f"{monster['name']} uzbruka un nodarīja {dmg} damage"
+                        if crit:
+                            msg += " (kritiskais sitiens!)"
+                        print_centered(color_text(msg, RED))
+                    if monster.get('accuracy_duration', 0) > 0:
+                        monster['accuracy_duration'] -= 1
+                        if monster['accuracy_duration'] == 0:
+                            monster['accuracy'] = 1.0
+                            print_centered(color_text(f"{monster['name']} regains its aim.", GREEN))
+                    time.sleep(1)
     
     if player['hp'] > 0:
+        if player.get('attack_potion_turns', 0) > 0:
+            player['attack_potion_turns'] = 0
+            print_centered(color_text('Tava Attack Potion spēka ietekme ir beigusies.', DIM))
         print_centered(color_text(f"\nTu uzvareji {monster['name']}!", GREEN, bold=True))
         player['xp'] += monster['xp_reward']
         print_centered(color_text(f"Tu ieguvi {monster['xp_reward']} XP. Kopā XP: {player['xp']}", CYAN))
+        award_item_drops(player)
         return True
     else:
         print_centered(color_text(f"\nTu zaudēji pret {monster['name']}.", RED, bold=True))
@@ -493,7 +811,16 @@ def start_game():
         "level": 1,
         "xp": 0,
         "xp_needed": 20,
-        "defense": 2
+        "defense": 2,
+        "accuracy": 1.0,
+        "blind_turns": 0,
+        "attack_potion_turns": 0,
+        "items": {
+            ATTACK_POTION_KEY: 0,
+            EXTRA_LIFE_KEY: 0,
+            TELEPORT_KEY: 0,
+            FLASHBANG_KEY: 0,
+        }
     }
 
     print("Spēle CAVE RUNNER sākas!")
@@ -552,22 +879,58 @@ def start_game():
         while player['xp'] >= player['xp_needed']:
             level_up(player)
 
-        print("\nKo darīsi tālāk?")
-        if player['xp'] >= player['xp_needed']:
-            print("1. Doties tālāk")
-            print("2. Uzlaboties (Upgrade)")
-            print("3. Iziet")
-            choice = get_player_choice("Tava izvēle (1, 2 vai 3): ", ["1", "2", "3"])
-            if choice == "2":
+        print("\n")
+        menu_width = min(72, max(50, get_terminal_width() - 20))
+        top = '╔' + '═' * (menu_width - 2) + '╗'
+        sep = '╟' + '─' * (menu_width - 2) + '╢'
+        bot = '╚' + '═' * (menu_width - 2) + '╝'
+
+        next_action = None
+        while next_action is None:
+            print_centered(color_text(top, CYAN))
+            print_centered(color_text('★  KO DARĪSI TĀLĀK?  ★'.center(menu_width - 2), YELLOW, bold=True))
+            print_centered(color_text(sep, CYAN))
+            print_centered(color_text('1. Doties tālāk'.ljust(menu_width - 4), GREEN))
+            if player['xp'] >= player['xp_needed']:
+                print_centered(color_text('2. Uzlaboties (Upgrade)'.ljust(menu_width - 4), MAGENTA))
+                print_centered(color_text('3. Iziet'.ljust(menu_width - 4), RED))
+            else:
+                print_centered(color_text('2. Iziet'.ljust(menu_width - 4), RED))
+            print_centered(color_text('items - Apskatīt inventāru'.ljust(menu_width - 4), BLUE))
+            print_centered(color_text(sep, CYAN))
+            print_centered(color_text('Ievadi numuru vai "items".', WHITE, bold=True))
+            print_centered(color_text('Tava izvēle:', GREEN, bold=True))
+            print_centered(color_text(bot, CYAN))
+
+            choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+
+            if choice == "1":
+                next_action = 'continue'
+            elif choice == "2" and player['xp'] >= player['xp_needed']:
                 level_up(player)
-            elif choice == "3":
-                break
-        else:
-            print("1. Doties tālāk")
-            print("2. Iziet")
-            choice = get_player_choice("Tava izvēle (1 vai 2): ", ["1", "2"])
-            if choice == "2":
-                break
+                if player['hp'] <= 0:
+                    next_action = 'exit'
+                else:
+                    continue
+            elif choice == "2" and player['xp'] < player['xp_needed']:
+                next_action = 'exit'
+            elif choice == "3" and player['xp'] >= player['xp_needed']:
+                next_action = 'exit'
+            elif choice == 'items':
+                result = show_items_catalog(player)
+                if result == 'teleported':
+                    next_action = 'teleported'
+                else:
+                    continue
+            else:
+                print(center_text("Nepareiza izvēle! Mēģini vēlreiz."))
+                time.sleep(1)
+                continue
+
+        if next_action == 'exit':
+            break
+        if next_action == 'teleported':
+            continue
 
         # Palielinām istabu skaitu pēc izvēles
         player["room_number"] += 1
