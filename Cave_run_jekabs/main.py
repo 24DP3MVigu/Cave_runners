@@ -3,30 +3,160 @@ import time
 import sys
 import csv
 import random
+import re
 from boss import is_boss_room, generate_boss, boss_intro_text, boss_special_action
 
-try:
-    TERMINAL_WIDTH = os.get_terminal_size().columns
-except OSError:
-    TERMINAL_WIDTH = 80  # Default fallback
+DEFAULT_TERMINAL_WIDTH = 80
+ANSI_ESCAPE = re.compile(r'\x1b\[[0-9;]*m')
+
+RESET = '\033[0m'
+BOLD = '\033[1m'
+DIM = '\033[2m'
+RED = '\033[91m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+BLUE = '\033[94m'
+MAGENTA = '\033[95m'
+CYAN = '\033[96m'
+WHITE = '\033[97m'
 
 # Base directory for data files (ensures script works when run from any cwd)
 BASE_DIR = os.path.dirname(__file__)
+
+def get_terminal_size():
+    try:
+        return os.get_terminal_size()
+    except OSError:
+        return os.terminal_size((DEFAULT_TERMINAL_WIDTH, 24))
+
+
+def get_terminal_width():
+    return get_terminal_size().columns
+
+
+def strip_ansi(text):
+    return ANSI_ESCAPE.sub('', str(text))
+
+
+def center_prompt(text):
+    raw = str(text)
+    visible = strip_ansi(raw)
+    width = get_terminal_width()
+    if len(visible) >= width:
+        return raw
+    pad_left = (width - len(visible)) // 2
+    return ' ' * pad_left + raw
+
+
 def center_text(text):
-    return text.center(TERMINAL_WIDTH)
+    width = get_terminal_width()
+    raw = str(text)
+    visible = strip_ansi(raw)
+    if len(visible) >= width:
+        return raw
+    pad_left = (width - len(visible)) // 2
+    pad_right = width - len(visible) - pad_left
+    return ' ' * pad_left + raw + ' ' * pad_right
+
 
 def center_ascii(text):
     lines = text.split('\n')
     centered_lines = []
+    width = get_terminal_width()
     for line in lines:
-        line = line.rstrip()
         if line:
-            centered_lines.append(line.center(TERMINAL_WIDTH))
+            centered_lines.append(line.center(width))
         else:
-            centered_lines.append('')
+            centered_lines.append(' ' * width)
     return '\n'.join(centered_lines)
 
-def display_hp_bar(current, max_hp, label="HP"):
+
+def print_centered(text):
+    for line in str(text).splitlines():
+        print(center_text(line))
+
+
+def color_text(text, color, bold=False):
+    if not color:
+        return str(text)
+    prefix = f"{BOLD if bold else ''}{color}"
+    return f"{prefix}{text}{RESET}"
+
+
+def print_action_menu():
+    menu_width = min(70, max(40, get_terminal_width() - 16))
+    top = '╔' + '═' * (menu_width - 2) + '╗'
+    sep = '╟' + '─' * (menu_width - 2) + '╢'
+    bot = '╚' + '═' * (menu_width - 2) + '╝'
+
+    print()
+    print_centered(color_text('★  IZVĒLIES DARĪBU  ★', CYAN, bold=True))
+    print_centered(top)
+    print_centered(color_text(' attack ', CYAN, bold=True) + color_text(' - Uzbrukt', WHITE))
+    print_centered(color_text('   ⚔ Spēcīgs sitiens, lai sagrautu pretinieku.', DIM))
+    print_centered(sep)
+    print_centered(color_text(' defense ', MAGENTA, bold=True) + color_text(' - Aizsargāties', WHITE))
+    print_centered(color_text('   🛡 Paaugstini bruņojumu un samazini iegūto damage.', DIM))
+    print_centered(sep)
+    print_centered(color_text(' item ', BLUE, bold=True) + color_text(' - Izmantot priekšmetu', WHITE))
+    print_centered(color_text('   ✨ Atgūsti dzīvību vai izmanto īpašu spēku.', DIM))
+    print_centered(sep)
+    print_centered(color_text(' quit ', RED, bold=True) + color_text(' - Iziet no spēles', WHITE))
+    print_centered(color_text('   ⛔ Pamet kauju un atgriezies galvenajā izvēlnē.', DIM))
+    print_centered(bot)
+    print()
+
+
+def scale_ascii_art(text, max_width=None, max_height=None, allow_expand=False):
+    lines = text.splitlines()
+    if not lines:
+        return text
+
+    lines = [line.rstrip('\n') for line in lines]
+    orig_w = max(len(line) for line in lines)
+    orig_h = len(lines)
+
+    if orig_w == 0 or orig_h == 0:
+        return text
+
+    if max_width is None:
+        max_width = get_terminal_width()
+    if max_height is None:
+        max_height = get_terminal_size().lines
+
+    if allow_expand and max_width > orig_w and max_width >= orig_w * 1.3:
+        expand_factor = int(max_width / orig_w)
+        expand_factor = max(2, min(expand_factor, 3))
+        scaled_lines = []
+        for line in lines:
+            expanded_line = ''.join(ch * expand_factor for ch in line)
+            for _ in range(expand_factor):
+                scaled_lines.append(expanded_line)
+        return '\n'.join(scaled_lines)
+
+    if orig_w <= max_width:
+        return '\n'.join(lines)
+
+    target_w = max(1, int(max_width))
+    target_h = max(1, int(round(orig_h * target_w / orig_w)))
+    scaled = []
+    for row_index in range(target_h):
+        src_row = min(orig_h - 1, int(row_index * orig_h / target_h))
+        row = lines[src_row].ljust(orig_w)
+        new_row_chars = []
+        for col_index in range(target_w):
+            src_col = min(orig_w - 1, int(col_index * orig_w / target_w))
+            new_row_chars.append(row[src_col])
+        scaled.append(''.join(new_row_chars))
+    return '\n'.join(scaled)
+
+
+def render_ascii_art(text, max_width=None, allow_expand=False):
+    scaled = scale_ascii_art(text, max_width=max_width, allow_expand=allow_expand)
+    return center_ascii(scaled)
+
+
+def display_hp_bar(current, max_hp, label="HP", centered=False):
     percentage = current / max_hp if max_hp > 0 else 0
     bar_length = 20
     filled = int(percentage * bar_length)
@@ -40,7 +170,11 @@ def display_hp_bar(current, max_hp, label="HP"):
         color = '\033[91m'  # red
     
     reset = '\033[0m'
-    print(f"{label}: {color}{bar}{reset} {current}/{max_hp}")
+    line = f"{label}: {color}{bar}{reset} {current}/{max_hp}"
+    if centered:
+        print(line.center(get_terminal_width()))
+    else:
+        print(line)
 
 # Damage calculation functions
 def calculate_damage(attacker_attack, defender_defense):
@@ -131,10 +265,10 @@ def level_up(player):
     points = 3
 
     # Big level-up banner (similar style to boss victory)
-    print('\n' + '=' * TERMINAL_WIDTH)
+    print('\n' + '=' * get_terminal_width())
     print(center_text(f"APSVEICAM! Tu sasniedzi {player['level']} līmeni!"))
     print(center_text('Tu vari turpināt ceļu pa alu vai iziet.'))
-    print('=' * TERMINAL_WIDTH + '\n')
+    print('=' * get_terminal_width() + '\n')
     time.sleep(1.5)
 
     print(f"Tev ir {points} atribūtu punkti ko sadalīt.")
@@ -148,7 +282,7 @@ def level_up(player):
         print(f"Atlikušie punkti: {points}")
 
         print(center_text("Tava izvēle:"))
-        choice = input('> ').strip().lower()
+        choice = input(center_prompt('> ')).strip().lower()
 
         if choice == "attack":
             player["str"] += 1
@@ -174,19 +308,15 @@ def run_combat(player, monster):
     defending = False
     while player['hp'] > 0 and monster['hp'] > 0:
         clear_screen()
-        print(f"--- Cīņa ar {monster['name']} ---")
-        display_hp_bar(player['hp'], player['max_hp'], "Tavs HP")
-        print(f"Spēks: {player['str']} | Aizsardzība: {player.get('defense', 0)}")
-        display_hp_bar(monster['hp'], monster['max_hp'], f"{monster['name']} HP")
-        print(f"Uzbrukums: {monster['attack']}")
-        print(monster['art'])
-        print("\nIzvēlies darbību:")
-        print("attack - Uzbrukt")
-        print("defense - Aizsargāties")
-        print("item - Izmantot priekšmetu")
-        print("quit - Iziet no spēles")
-        
-        action = input("Tava izvēle: ").strip().lower()
+        print_centered(f"--- Cīņa ar {monster['name']} ---")
+        display_hp_bar(player['hp'], player['max_hp'], "Tavs HP", centered=True)
+        print_centered(f"Spēks: {player['str']} | Aizsardzība: {player.get('defense', 0)}")
+        display_hp_bar(monster['hp'], monster['max_hp'], f"{monster['name']} HP", centered=True)
+        print_centered(color_text(f"Uzbrukums: {monster['attack']}", MAGENTA, bold=True))
+        print(render_ascii_art(monster['art']))
+        print_action_menu()
+        print_centered(color_text('Tava izvēle:', GREEN, bold=True))
+        action = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
         
         if action == "attack":
             dmg, crit = final_damage(player['str'], monster['defense'])
@@ -194,25 +324,25 @@ def run_combat(player, monster):
             msg = f"Tu uzbruki un nodarīji {dmg} damage"
             if crit:
                 msg += " (kritiskais sitiens!)"
-            print(msg)
+            print_centered(color_text(msg, GREEN))
         
         elif action == "defense":
             defending = True
-            print("Tu sagatavojies aizsardzībai.")
+            print_centered(color_text("Tu sagatavojies aizsardzībai.", YELLOW))
         
         elif action == "item":
             # Simple heal
             heal = 10
             player['hp'] = min(player['max_hp'], player['hp'] + heal)
-            print(f"Tu izmantoji priekšmetu un atguvi {heal} HP.")
+            print_centered(color_text(f"Tu izmantoji priekšmetu un atguvi {heal} HP.", BLUE))
         
         elif action == "quit" or action == "iziet":
-            print("Tu izlēmi iziet no spēles.")
+            print_centered(color_text("Tu izlēmi iziet no spēles.", RED, bold=True))
             player['hp'] = 0  # Force game over
             return False
         
         else:
-            print("Nepareiza izvēle! Pamēģini vēlreiz.")
+            print_centered(color_text("Nepareiza izvēle! Pamēģini vēlreiz.", RED))
             time.sleep(1)
             continue
         
@@ -229,18 +359,18 @@ def run_combat(player, monster):
                 action = boss_special_action(monster, player)
                 # Show action text when available
                 if action.get('text'):
-                    print(action['text'])
+                    print_centered(color_text(action['text'], MAGENTA, bold=True))
 
                 if action['type'] in ('attack', 'special'):
                     # Boss special/attack provides direct damage value
                     dmg = int(action.get('value', 0))
                     player['hp'] -= dmg
-                    print(f"{monster['name']} nodarīja {dmg} damage.")
+                    print_centered(color_text(f"{monster['name']} nodarīja {dmg} damage.", RED, bold=True))
                 elif action['type'] == 'defend':
                     # Temporary buff: add to boss defense for next turn
                     buff = int(action.get('value', 0))
                     monster['defense'] = monster.get('defense', 0) + buff
-                    print(f"{monster['name']} aizsardzība pieauga par {buff} (pagaidu).")
+                    print_centered(color_text(f"{monster['name']} aizsardzība pieauga par {buff} (pagaidu).", YELLOW))
                 time.sleep(1)
             else:
                 dmg, crit = final_damage(monster['attack'], def_mod)
@@ -248,16 +378,16 @@ def run_combat(player, monster):
                 msg = f"{monster['name']} uzbruka un nodarīja {dmg} damage"
                 if crit:
                     msg += " (kritiskais sitiens!)"
-                print(msg)
+                print_centered(color_text(msg, RED))
                 time.sleep(1)
     
     if player['hp'] > 0:
-        print(f"\nTu uzvareji {monster['name']}!")
+        print_centered(color_text(f"\nTu uzvareji {monster['name']}!", GREEN, bold=True))
         player['xp'] += monster['xp_reward']
-        print(f"Tu ieguvi {monster['xp_reward']} XP. Kopā XP: {player['xp']}")
+        print_centered(color_text(f"Tu ieguvi {monster['xp_reward']} XP. Kopā XP: {player['xp']}", CYAN))
         return True
     else:
-        print(f"\nTu zaudēji pret {monster['name']}.")
+        print_centered(color_text(f"\nTu zaudēji pret {monster['name']}.", RED, bold=True))
         return False
 
 # ASCII Art for main menu
@@ -308,7 +438,7 @@ def clear_screen():
 def get_player_choice(prompt, valid_options):
     while True:
         print(center_text(prompt))
-        choice = input('> ').strip().lower()
+        choice = input(center_prompt('> ')).strip().lower()
         # Pārbaudām, vai ievade ir sarakstā (piem., "1", "2" vai "start")
         if choice in valid_options:
             return choice
@@ -324,22 +454,22 @@ def show_rules():
     print(center_text("4. Sasniedz 10. istabu, lai cīnītos ar bossu."))
     print(center_text("5. Ja HP sasniedz 0, spēle beigusies."))
     print("\n" + center_text("Nospied Enter, lai atgrieztos pie galvenā izvēlnes."))
-    input()
+    input(center_prompt(''))
 
 def show_main_menu():
     while True:
         clear_screen()
-        print(CAVE_RUNNER_LOGO)
+        print(render_ascii_art(CAVE_RUNNER_LOGO, allow_expand=True))
         
-        print('\n' + '=' * TERMINAL_WIDTH)
-        print(center_text('Izvēlies opciju:'))
-        print(center_text('START - Sākt spēli'))
-        print(center_text('RULES - Skatīt noteikumus'))
-        print(center_text('QUIT - Iziet'))
-        print('=' * TERMINAL_WIDTH)
+        print('\n' + '=' * get_terminal_width())
+        print_centered(color_text('Izvēlies opciju:', YELLOW, bold=True))
+        print_centered(color_text('START - Sākt spēli', CYAN))
+        print_centered(color_text('RULES - Skatīt noteikumus', MAGENTA))
+        print_centered(color_text('QUIT - Iziet', RED))
+        print('=' * get_terminal_width())
         
-        print(center_text('Tava izvēle:'))
-        choice = input('> ').strip().lower()
+        print_centered(color_text('Tava izvēle:', GREEN, bold=True))
+        choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
         if choice == "start":
             return
         elif choice == "rules":
@@ -390,10 +520,10 @@ def start_game():
             generated['is_boss'] = True
             monster = generated
             # Big boss intro banner
-            print('=' * TERMINAL_WIDTH)
+            print('=' * get_terminal_width())
             print(center_text('!!! BOSS ENCOUNTER !!!'))
             print(center_text(boss_intro_text(monster)))
-            print('=' * TERMINAL_WIDTH)
+            print('=' * get_terminal_width())
             time.sleep(1)
             won = run_combat(player, monster)
             # If player died during boss, end the run
@@ -402,16 +532,16 @@ def start_game():
                 break
             # On boss victory, show a larger congratulatory banner but allow continuing
             if won:
-                print('\n' + '=' * TERMINAL_WIDTH)
+                print('\n' + '=' * get_terminal_width())
                 print(center_text('APSVEICAM! Tu pieveici Bosu!'))
                 print(center_text('Tu vari turpināt ceļu pa alu vai iziet.'))
-                print('=' * TERMINAL_WIDTH + '\n')
+                print('=' * get_terminal_width() + '\n')
                 time.sleep(2)
         else:
             print(f"--- ISTABA NR. {player['room_number']} ---")
             monster = load_monster()
             print(f"Tu cīnies ar {monster['name']}!")
-            print(monster['art'])
+            print(render_ascii_art(monster['art']))
             time.sleep(1)
             combat_result = run_combat(player, monster)
             if not combat_result:
@@ -455,7 +585,7 @@ def start_game():
         
         while True:
             print(center_text("Vai vēlies spēlēt vēlreiz? (j/n)"))
-            choice = input('> ').strip().lower()
+            choice = input(center_prompt('> ')).strip().lower()
             if choice == 'j':
                 start_game()
                 return
