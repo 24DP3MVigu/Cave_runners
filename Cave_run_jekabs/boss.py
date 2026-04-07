@@ -1,5 +1,4 @@
 import random
-import math
 
 
 def is_boss_room(room_number: int) -> bool:
@@ -18,26 +17,7 @@ def _base_stats_for_boss_index(index: int) -> dict:
     }
 
 
-def _compute_multipliers(player: dict, room_number: int) -> float:
-    """Compute a combined multiplier from player level, XP, and room index.
-
-    The result aims to scale bosses so they remain challenging but fair:
-    - ~8% stronger per player level
-    - up to ~10% from current XP progress
-    - ~12% per boss milestone (10,20,30...)
-    Multipliers are multiplied together to avoid linear runaway.
-    """
-    level = max(1, int(player.get('level', 1)))
-    xp = max(0, player.get('xp', 0))
-    xp_needed = max(1, player.get('xp_needed', 20))
-    boss_index = max(1, room_number // 10)
-
-    level_mult = 1.0 + (level - 1) * 0.08
-    xp_progress = min(2.0, xp / xp_needed)  # cap contribution from XP
-    xp_mult = 1.0 + (xp_progress * 0.05)
-    room_mult = 1.0 + (boss_index - 1) * 0.12
-
-    return level_mult * xp_mult * room_mult
+ 
 
 
 def generate_boss(player: dict, room_number: int) -> dict:
