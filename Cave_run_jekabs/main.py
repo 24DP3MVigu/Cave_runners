@@ -466,4 +466,4 @@ def start_game():
                 print(center_text("Nepareiza izvēle! Ievadi 'j' vai 'n'."))
 
 if __name__ == "__main__":
-    start_game()
+    start_game() #nigger
