@@ -4,6 +4,8 @@ import sys
 import csv
 import random
 import re
+import shutil
+
 from boss import is_boss_room, generate_boss, boss_intro_text, boss_special_action
 
 DEFAULT_TERMINAL_WIDTH = 80
@@ -21,11 +23,139 @@ CYAN = '\033[96m'
 WHITE = '\033[97m'
 
 # Base directory for data files (ensures script works when run from any cwd)
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+STORY_DIR = os.path.normpath(os.path.join(BASE_DIR, '..', 'Story'))
+
+# Sound effects and music folder
+SOUND_DIR = os.path.normpath(os.path.join(BASE_DIR, '..', 'sound_efffects_and_music'))
+if not os.path.isdir(SOUND_DIR):
+    SOUND_DIR = os.path.normpath(os.path.join(BASE_DIR, '..', 'sound_effects_and_music'))
+if not os.path.isdir(SOUND_DIR):
+    SOUND_DIR = os.path.normpath(os.path.join(os.getcwd(), 'sound_efffects_and_music'))
+if not os.path.isdir(SOUND_DIR):
+    SOUND_DIR = os.path.normpath(os.path.join(os.getcwd(), 'sound_effects_and_music'))
+
+SOUND_CACHE = {}
+SOUND_ENABLED = False
+CURRENT_MUSIC = None
+try:
+    import pygame
+    pygame.mixer.pre_init(44100, -16, 2, 4096)
+    pygame.init()
+    pygame.mixer.init()
+    SOUND_ENABLED = True
+except Exception:
+    SOUND_ENABLED = False
+
+
+def load_sound_asset(filename):
+    if not SOUND_ENABLED:
+        return None
+    path = os.path.join(SOUND_DIR, filename)
+    if not os.path.isfile(path):
+        return None
+    try:
+        if filename not in SOUND_CACHE:
+            SOUND_CACHE[filename] = pygame.mixer.Sound(path)
+        return SOUND_CACHE[filename]
+    except Exception:
+        return None
+
+
+def play_sound(filename, loops=0):
+    sound = load_sound_asset(filename)
+    if sound:
+        try:
+            sound.play(loops=loops)
+        except Exception:
+            pass
+
+
+def play_music(filename, loops=-1):
+    global CURRENT_MUSIC
+    if not SOUND_ENABLED:
+        return
+    path = os.path.join(SOUND_DIR, filename)
+    if not os.path.isfile(path):
+        return
+    try:
+        if CURRENT_MUSIC == filename and pygame.mixer.music.get_busy():
+            return
+        pygame.mixer.music.load(path)
+        pygame.mixer.music.play(loops=loops)
+        CURRENT_MUSIC = filename
+    except Exception:
+        pass
+
+
+def stop_music():
+    global CURRENT_MUSIC
+    if not SOUND_ENABLED:
+        return
+    try:
+        pygame.mixer.music.stop()
+    except Exception:
+        pass
+    CURRENT_MUSIC = None
+
+STORY_PAGES = [
+    {
+        'art_file': 'first_image.txt',
+        'lines': [
+            'Sen cilvēki dzīvoja',
+            'mierīgi uz virsmas.',
+            'Dziļi zem zemes gulēja',
+            'plaši, nebeidzami tīkli',
+        ],
+    },
+    {
+        'art_file': 'picture_two.txt',
+        'lines': [
+            'Šīs senās alas bija mājvieta dīvainiem un spēcīgiem briesmoņiem.',
+            'Tie bija izauguši tumsā gadu tūkstošiem paaudzēs.',
+        ],
+    },
+    {
+        'art_file': 'third_image.txt',
+        'lines': [
+            'Ziņkāres un mantkārības vadīti, cilvēki devās dziļi alās.',
+            'Liktenīgajos tuneļos starp abām rasēm izcēlās liels karš.',
+        ],
+    },
+    {
+        'art_file': 'fourth_image.txt',
+        'lines': [
+            'Pēc daudzām kaujām cilvēki ar varenu maģiju aizzīmogoja alu dziļākās un bīstamākās vietas.',
+            'Taču alas... tās bija patiesi bezgalīgas.',
+        ],
+    },
+    {
+        'art_file': 'fifth_image.txt',
+        'lines': [
+            'Daudzus gadus vēlāk... Leģendas vēsta par Bezgalīgajām alām.',
+            'Tikai drosmīgākie karotāji — Alu skrējēji (Cave Runners) — uzdrošinās tajās ieiet.',
+        ],
+    },
+    {
+        'art_file': 'sixth_image.txt',
+        'lines': [
+            'Cīnies ar briesmoņiem un kļūsti spēcīgāks, virzoties cauri telpām.',
+            'Katrā desmitajā telpā tevi gaida varens boss, lai pārbaudītu tavu spēku.',
+        ],
+    },
+    {
+        'art_file': 'seventh_image.txt',
+        'lines': [
+            'Un ja tu pierādīsi, ka esi cienīgs... vai pietiekami muļķis...',
+            'Tu vari pamodināt Slepeno Bosu — patieso bezdibeņa sargu.',
+        ],
+    },
+]
+
 
 def get_terminal_size():
     try:
-        return os.get_terminal_size()
+        return shutil.get_terminal_size(fallback=(DEFAULT_TERMINAL_WIDTH, 24))
     except OSError:
         return os.terminal_size((DEFAULT_TERMINAL_WIDTH, 24))
 
@@ -64,16 +194,86 @@ def center_ascii(text):
     centered_lines = []
     width = get_terminal_width()
     for line in lines:
-        if line:
-            centered_lines.append(line.center(width))
-        else:
+        if not line:
             centered_lines.append(' ' * width)
+            continue
+        visible = strip_ansi(line)
+        if len(visible) >= width:
+            centered_lines.append(line)
+            continue
+        pad_left = (width - len(visible)) // 2
+        centered_lines.append(' ' * pad_left + line)
     return '\n'.join(centered_lines)
 
 
 def print_centered(text):
     for line in str(text).splitlines():
         print(center_text(line))
+
+
+def maximize_console():
+    if os.name == 'nt':
+        os.system('mode con: cols=160 lines=48')
+    else:
+        # Attempt to expand the terminal on UNIX-like systems.
+        sys.stdout.write('\x1b[8;48;160t')
+        sys.stdout.flush()
+
+
+def load_story_art(filename):
+    art_path = os.path.join(STORY_DIR, filename)
+    try:
+        with open(art_path, 'r', encoding='utf-8', errors='replace') as f:
+            return f.read()
+    except FileNotFoundError:
+        return f'[{filename} not found]'
+
+
+def fade_in_lines(lines, char_delay=0.01, line_delay=0.15):
+    for line in lines:
+        display = ''
+        for ch in line:
+            display += ch
+            print(center_text(display), end='\r', flush=True)
+            time.sleep(char_delay)
+        print(center_text(display))
+        time.sleep(line_delay)
+
+
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+
+def show_story_page(page_index, page):
+    clear_screen()
+    art = load_story_art(page['art_file'])
+    print(center_ascii(art))
+    print('\n')
+    fade_in_lines(page['lines'])
+    print('\n' + center_text('[Nospied Enter, lai turpinātu]'))
+    input(center_prompt(''))
+
+
+def show_fullscreen_prompt():
+    maximize_console()
+    clear_screen()
+    term_size = get_terminal_size()
+    blank_lines = max(0, (term_size.lines - 4) // 2)
+    print('\n' * blank_lines)
+    print(center_text('Pārliecinies, ka spēle ir FULL SCREEN.'))
+    print(center_text('Nospied Enter, lai sāktu.'))
+    input(center_prompt(''))
+    clear_screen()
+
+
+def show_story_intro():
+    stop_music()
+    play_music('before_epic_intro.mp3', loops=-1)
+    show_fullscreen_prompt()
+    for idx, page in enumerate(STORY_PAGES, start=1):
+        show_story_page(idx, page)
+    play_music('epic_intro.mp3', loops=-1)
+    clear_screen()
 
 
 ATTACK_POTION_KEY = 'attack_potion'
@@ -216,6 +416,7 @@ def use_flashbang(player, monster):
         return False
 
     player['items'][FLASHBANG_KEY] -= 1
+    play_sound('404flash.mp3')
     print_centered(color_text("[!] 404 ERROR: Enemy's target coordinates not found!", YELLOW, bold=True))
     monster['accuracy'] = 0.4
     monster['accuracy_duration'] = 2
@@ -242,6 +443,7 @@ def use_attack_potion(player):
     player['items'][ATTACK_POTION_KEY] -= 1
     player['attack_potion_turns'] = 1
     print_centered(color_text("Tu uzpildi savu ieroču spēku — nākamā istaba būs mēreni vieglāka!", MAGENTA, bold=True))
+    play_sound('potions.mp3')
     return True
 
 
@@ -255,6 +457,7 @@ def use_extra_life(player):
     previous_hp = player['hp']
     player['hp'] = min(player['max_hp'], player['hp'] + heal_amount)
     print_centered(color_text(f"Extra Life atjaunoja {player['hp'] - previous_hp} HP!", GREEN, bold=True))
+    play_sound('potions.mp3')
     return True
 
 
@@ -267,6 +470,7 @@ def use_teleport(player):
         print_centered(color_text("Potion of Teleportion nedarbojas bosa istabā.", RED, bold=True))
         return False
     player['items'][TELEPORT_KEY] -= 1
+    play_sound('potions.mp3')
     player['room_number'] += 1
     print_centered(color_text("Tu izteleportējies uz nākamo istabu!", CYAN, bold=True))
     return True
@@ -544,6 +748,7 @@ def level_up(player):
     print(center_text(color_text('Tu vari turpināt ceļu pa alu vai iziet.', WHITE)))
     print(center_text(color_text(border_bot, CYAN)))
     print()
+    play_sound('upgrade.mp3')
     time.sleep(2)
 
     print(center_text(color_text(f"Tev ir {points} atribūtu punkti ko sadalīt.", MAGENTA, bold=True)))
@@ -610,6 +815,7 @@ def run_combat(player, monster):
                 if attack_bonus > 0:
                     msg += " (Attack Potion bonus!)"
                 print_centered(color_text(msg, GREEN))
+                play_sound('attack.mp3')
             if player.get('attack_potion_turns', 0) > 0:
                 print_centered(color_text('Attack Potion efektu joprojām izmanto kaujas laikā.', DIM))
             if player.get('blind_turns', 0) > 0:
@@ -748,44 +954,66 @@ CAVE_RUNNER_LOGO = r'''
                                                                 
 '''
 
-# --- 3. Implementēt clear_screen() funkciju ---
-def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
+START_BUTTON_ART = r'''
+________  _________  ________  ________  _________   
+|\   ____\|\___   ___\\   __  \|\   __  \|\___   ___\ 
+\ \  \___|\|___ \  \_\ \  \|\  \ \  \|\  \|___ \  \_| 
+ \ \_____  \   \ \  \ \ \   __  \ \   _  _\   \ \  \  
+  \|____|\  \   \ \  \ \ \  \ \  \ \  \\  \|   \ \  \ 
+    ____\_\  \   \ \__\ \ \__\ \__\ \__\\ _\    \ \__\
+   |\_________\   \|__|  \|__|\|__|\|__|\|__|    \|__|
+   \|_________|
+'''
 
-# --- 7. & 8. Funkcija izvēlēm ar kļūdu apstrādi (try/except) ---
-def get_player_choice(prompt, valid_options):
-    while True:
-        print(center_text(prompt))
-        choice = input(center_prompt('> ')).strip().lower()
-        # Pārbaudām, vai ievade ir sarakstā (piem., "1", "2" vai "start")
-        if choice in valid_options:
-            return choice
-        else:
-            print(f"Nepareiza izvēle! Lūdzu, izvēlies: {', '.join(valid_options)}")
+RULES_BUTTON_ART = r'''
+________  ___  ___  ___       _______   ________      
+|\   __  \|\  \|\  \|\  \     |\  ___ \ |\   ____\     
+\ \  \|\  \ \  \\\  \ \  \    \ \   __/|\ \  \___|_    
+ \ \   _  _\ \  \\\  \ \  \    \ \  \_|/_\ \_____  \   
+  \ \  \\  \\ \  \\\  \ \  \____\ \  \_|\ \|____|\  \  
+   \ \__\\ _\\ \_______\ \_______\ \_______\____\_\  \ 
+    \|__|\|__|\|_______|\|_______|\|_______|\_________\
+                                           \|_________|
+'''
 
-def show_rules():
-    clear_screen()
-    print(center_text("=== Spēles noteikumi ==="))
-    print(center_text("1. Tu esi alas skrējējs."))
-    print(center_text("2. Katrā istabā cīnies ar monstriem."))
-    print(center_text("3. Pēc uzvaras vari uzlabot spēku vai HP."))
-    print(center_text("4. Sasniedz 10. istabu, lai cīnītos ar bossu."))
-    print(center_text("5. Ja HP sasniedz 0, spēle beigusies."))
-    print("\n" + center_text("Nospied Enter, lai atgrieztos pie galvenā izvēlnes."))
-    input(center_prompt(''))
+QUIT_BUTTON_ART = r'''
+________  ___  ___  ___  _________   
+|\   __  \|\  \|\  \|\  \|\___   ___\ 
+\ \  \|\  \ \  \\\  \ \  \|___ \  \_| 
+ \ \  \\\  \ \  \\\  \ \  \   \ \  \  
+  \ \  \\\  \ \  \\\  \ \  \   \ \  \ 
+   \ \_____  \ \_______\ \__\   \ \__\
+    \|___| \__\|_______|\|__|    \|__|
+          \|__|
+'''
+
+
+def render_side_by_side(*arts, spacing=6):
+    columns = [art.splitlines() for art in arts]
+    max_lines = max(len(col) for col in columns)
+    for col in columns:
+        col += [''] * (max_lines - len(col))
+    widths = [max(len(line) for line in col) for col in columns]
+    combined = []
+    pad = ' ' * spacing
+    for rows in zip(*columns):
+        padded = [row.ljust(width) for row, width in zip(rows, widths)]
+        combined.append(pad.join(padded))
+    return center_ascii('\n'.join(combined))
+
 
 def show_main_menu():
+    stop_music()
     while True:
         clear_screen()
         print(render_ascii_art(CAVE_RUNNER_LOGO, allow_expand=True))
-        
+        print('\n')
+        print(render_side_by_side(START_BUTTON_ART, RULES_BUTTON_ART, QUIT_BUTTON_ART))
+        print('\n')
+        print(center_text(color_text('START', CYAN, bold=True).ljust(26) + ' ' * 6 + color_text('RULES', MAGENTA, bold=True).center(24) + ' ' * 6 + color_text('QUIT', RED, bold=True).rjust(18)))
+        print('\n')
+        print_centered(color_text('Ievadi: start, rules vai quit', YELLOW, bold=True))
         print('\n' + '=' * get_terminal_width())
-        print_centered(color_text('Izvēlies opciju:', YELLOW, bold=True))
-        print_centered(color_text('START - Sākt spēli', CYAN))
-        print_centered(color_text('RULES - Skatīt noteikumus', MAGENTA))
-        print_centered(color_text('QUIT - Iziet', RED))
-        print('=' * get_terminal_width())
-        
         print_centered(color_text('Tava izvēle:', GREEN, bold=True))
         choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
         if choice == "start":
@@ -799,8 +1027,25 @@ def show_main_menu():
             print(center_text("Nepareiza izvēle! Mēģini vēlreiz."))
             time.sleep(1)
 
+
+def show_rules():
+    clear_screen()
+    print(center_text(color_text('=== Spēles noteikumi ===', YELLOW, bold=True)))
+    print('\n')
+    print_centered('1. Tu esi alas skrējējs.')
+    print_centered('2. Katrā istabā cīnies ar monstriem.')
+    print_centered('3. Pēc uzvaras vari uzlabot spēku vai HP.')
+    print_centered('4. Sasniedz 10. istabu, lai cīnītos ar bossu.')
+    print_centered('5. Ja HP sasniedz 0, spēle beigusies.')
+    print('\n')
+    print(center_text('Nospied Enter, lai atgrieztos pie galvenās izvēlnes.'))
+    input(center_prompt(''))
+
+
 def start_game():
+    show_story_intro()
     show_main_menu()
+    play_music('main.mp3', loops=-1)
     
     # --- 2. Mainīgie spēlētāja stāvoklim ---
     player = {
@@ -851,8 +1096,12 @@ def start_game():
             print(center_text('!!! BOSS ENCOUNTER !!!'))
             print(center_text(boss_intro_text(monster)))
             print('=' * get_terminal_width())
+            play_music(random.choice(['boss1.mp3', 'boss2.mp3', 'boss3.mp3']), loops=-1)
             time.sleep(1)
             won = run_combat(player, monster)
+            stop_music()
+            if player.get('hp', 0) > 0 and won:
+                play_music('main.mp3', loops=-1)
             # If player died during boss, end the run
             if player.get('hp', 0) <= 0:
                 print("Tu nomiri kaujā. Spēle beigusies.")
@@ -938,6 +1187,7 @@ def start_game():
         time.sleep(1.5)
 
     if player["hp"] <= 0:
+        play_music('You_Died.mp3', loops=-1)
         gameover_path = os.path.join(os.path.dirname(__file__), '..', 'gameover.txt')
         try:
             with open(gameover_path, 'r') as f:
