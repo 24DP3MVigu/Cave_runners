@@ -5,6 +5,8 @@ import csv
 import random
 import re
 import shutil
+import ctypes
+from ctypes import wintypes
 
 from boss import is_boss_room, generate_boss, boss_intro_text, boss_special_action
 
@@ -38,14 +40,52 @@ if not os.path.isdir(SOUND_DIR):
 SOUND_CACHE = {}
 SOUND_ENABLED = False
 CURRENT_MUSIC = None
-try:
-    import pygame
-    pygame.mixer.pre_init(44100, -16, 2, 4096)
-    pygame.init()
-    pygame.mixer.init()
-    SOUND_ENABLED = True
-except Exception:
-    SOUND_ENABLED = False
+AUDIO_BACKEND = None
+MCI_SEND_STRING = None
+
+if os.name == 'nt':
+    try:
+        winmm = ctypes.WinDLL('winmm')
+        MCI_SEND_STRING = winmm.mciSendStringW
+        MCI_SEND_STRING.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.UINT, wintypes.HWND]
+        MCI_SEND_STRING.restype = wintypes.UINT
+        AUDIO_BACKEND = 'mci'
+        SOUND_ENABLED = True
+    except Exception:
+        AUDIO_BACKEND = None
+
+if not SOUND_ENABLED:
+    try:
+        import pygame
+        pygame.mixer.pre_init(44100, -16, 2, 4096)
+        pygame.init()
+        pygame.mixer.init()
+        AUDIO_BACKEND = 'pygame'
+        SOUND_ENABLED = True
+    except Exception:
+        SOUND_ENABLED = False
+
+
+def mci_send_string(command):
+    if MCI_SEND_STRING is None:
+        return False
+    try:
+        return MCI_SEND_STRING(command, None, 0, None) == 0
+    except Exception:
+        return False
+
+
+def get_mci_type(path):
+    ext = os.path.splitext(path)[1].lower()
+    if ext == '.wav':
+        return 'waveaudio'
+    return 'mpegvideo'
+
+
+def mci_open(path, alias):
+    mci_send_string(f'close {alias}')
+    file_type = get_mci_type(path)
+    return mci_send_string(f'open "{path}" type {file_type} alias {alias}')
 
 
 def load_sound_asset(filename):
@@ -63,6 +103,22 @@ def load_sound_asset(filename):
 
 
 def play_sound(filename, loops=0):
+    if not SOUND_ENABLED:
+        return
+    path = os.path.join(SOUND_DIR, filename)
+    if not os.path.isfile(path):
+        return
+
+    if AUDIO_BACKEND == 'mci':
+        alias = 'sfx'
+        if not mci_open(path, alias):
+            return
+        if loops == -1:
+            mci_send_string(f'play {alias} repeat')
+        else:
+            mci_send_string(f'play {alias}')
+        return
+
     sound = load_sound_asset(filename)
     if sound:
         try:
@@ -78,6 +134,24 @@ def play_music(filename, loops=-1):
     path = os.path.join(SOUND_DIR, filename)
     if not os.path.isfile(path):
         return
+
+    if AUDIO_BACKEND == 'mci':
+        alias = 'music'
+        if CURRENT_MUSIC == filename:
+            if loops == -1:
+                mci_send_string(f'play {alias} repeat')
+            else:
+                mci_send_string(f'play {alias}')
+            return
+        if not mci_open(path, alias):
+            return
+        if loops == -1:
+            mci_send_string(f'play {alias} repeat')
+        else:
+            mci_send_string(f'play {alias}')
+        CURRENT_MUSIC = filename
+        return
+
     try:
         if CURRENT_MUSIC == filename and pygame.mixer.music.get_busy():
             return
@@ -91,6 +165,11 @@ def play_music(filename, loops=-1):
 def stop_music():
     global CURRENT_MUSIC
     if not SOUND_ENABLED:
+        return
+    if AUDIO_BACKEND == 'mci':
+        mci_send_string('stop music')
+        mci_send_string('close music')
+        CURRENT_MUSIC = None
         return
     try:
         pygame.mixer.music.stop()
@@ -272,7 +351,8 @@ def show_story_intro():
     show_fullscreen_prompt()
     for idx, page in enumerate(STORY_PAGES, start=1):
         show_story_page(idx, page)
-    play_music('epic_intro.mp3', loops=-1)
+        if idx == len(STORY_PAGES):
+            play_music('epic_intro.mp3', loops=-1)
     clear_screen()
 
 
@@ -769,14 +849,17 @@ def level_up(player):
         choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
 
         if choice == "attack":
+            play_sound('atrb_up.mp3')
             player["str"] += 1
             points -= 1
             print("Uzbrukums palielināts!")
         elif choice == "defense":
+            play_sound('atrb_up.mp3')
             player["defense"] += 1
             points -= 1
             print("Aizsardzība palielināta!")
         elif choice == "max_health":
+            play_sound('atrb_up.mp3')
             player["max_hp"] += 5
             player["hp"] = player["max_hp"]  # Heal to full
             points -= 1
@@ -871,6 +954,7 @@ def run_combat(player, monster):
                     dmg = int(action.get('value', 0))
                     player['hp'] -= dmg
                     print_centered(color_text(f"{monster['name']} nodarīja {dmg} damage.", RED, bold=True))
+                    play_sound('enemy_hit.mp3')
                 elif action['type'] == 'defend':
                     # Temporary buff: add to boss defense for next turn
                     buff = int(action.get('value', 0))
@@ -894,6 +978,7 @@ def run_combat(player, monster):
                         if crit:
                             msg += " (kritiskais sitiens!)"
                         print_centered(color_text(msg, RED))
+                        play_sound('enemy_hit.mp3')
                     if monster.get('accuracy_duration', 0) > 0:
                         monster['accuracy_duration'] -= 1
                         if monster['accuracy_duration'] == 0:
@@ -913,6 +998,37 @@ def run_combat(player, monster):
     else:
         print_centered(color_text(f"\nTu zaudēji pret {monster['name']}.", RED, bold=True))
         return False
+
+
+def show_scary_event():
+    stop_music()
+    clear_screen()
+    play_music('messages.mp3', loops=-1)
+    messages = [
+        "You feel an evil presence watching you..",
+        "You feel vibrations from deep below...",
+        "You feel a quaking from deep underground...",
+        "Impending doom approaches...",
+    ]
+    text = random.choice(messages)
+    width = get_terminal_width()
+    blank_lines = max(0, (get_terminal_size().lines - 6) // 2)
+    print('\n' * blank_lines)
+    for i in range(1, len(text) + 1):
+        fragment = center_text(text[:i])
+        padding = max(0, width - len(strip_ansi(fragment)))
+        sys.stdout.write(fragment + ' ' * padding + '\r')
+        sys.stdout.flush()
+        time.sleep(0.08)
+    sys.stdout.write('\n\n')
+    sys.stdout.flush()
+    time.sleep(1.5)
+    print(center_text(color_text('The shadows are closing in...', RED, bold=True)))
+    time.sleep(1.5)
+    print(center_text(color_text('Nospied Enter, lai turpinātu.', WHITE, bold=True)))
+    input(center_prompt(''))
+    stop_music()
+    clear_screen()
 
 # ASCII Art for main menu
 CAVE_RUNNER_LOGO = r'''
@@ -1100,19 +1216,19 @@ def start_game():
             time.sleep(1)
             won = run_combat(player, monster)
             stop_music()
-            if player.get('hp', 0) > 0 and won:
-                play_music('main.mp3', loops=-1)
             # If player died during boss, end the run
             if player.get('hp', 0) <= 0:
                 print("Tu nomiri kaujā. Spēle beigusies.")
                 break
-            # On boss victory, show a larger congratulatory banner but allow continuing
+            # On boss victory, show a larger congratulatory banner, then scary event
             if won:
                 print('\n' + '=' * get_terminal_width())
                 print(center_text('APSVEICAM! Tu pieveici Bosu!'))
                 print(center_text('Tu vari turpināt ceļu pa alu vai iziet.'))
                 print('=' * get_terminal_width() + '\n')
                 time.sleep(2)
+                show_scary_event()
+                play_music('main.mp3', loops=-1)
         else:
             print(f"--- ISTABA NR. {player['room_number']} ---")
             monster = load_monster()
