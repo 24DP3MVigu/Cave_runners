@@ -50,6 +50,8 @@ SOUND_ENABLED = False
 CURRENT_MUSIC = None
 AUDIO_BACKEND = None
 MCI_SEND_STRING = None
+TYPING_SFX_CHANNEL = None
+USE_SHORT_TALKING_NEXT = True
 
 if os.name == 'nt':
     try:
@@ -185,6 +187,55 @@ def stop_music():
         pass
     CURRENT_MUSIC = None
 
+
+def start_talking_sfx(text, force_short=False):
+    """Play talking SFX in a loop while animated text is being printed."""
+    if not SOUND_ENABLED:
+        return
+
+    global USE_SHORT_TALKING_NEXT
+    if force_short:
+        filename = 'talking_short.mp3'
+    else:
+        filename = 'talking_short.mp3' if USE_SHORT_TALKING_NEXT else 'long_talking.mp3'
+        USE_SHORT_TALKING_NEXT = not USE_SHORT_TALKING_NEXT
+    path = os.path.join(SOUND_DIR, filename)
+    if not os.path.isfile(path):
+        return
+
+    global TYPING_SFX_CHANNEL
+    if AUDIO_BACKEND == 'mci':
+        alias = 'typing'
+        if not mci_open(path, alias):
+            return
+        mci_send_string(f'play {alias} repeat')
+        return
+
+    sound = load_sound_asset(filename)
+    if sound:
+        try:
+            TYPING_SFX_CHANNEL = sound.play(loops=-1)
+        except Exception:
+            TYPING_SFX_CHANNEL = None
+
+
+def stop_talking_sfx():
+    if not SOUND_ENABLED:
+        return
+
+    global TYPING_SFX_CHANNEL
+    if AUDIO_BACKEND == 'mci':
+        mci_send_string('stop typing')
+        mci_send_string('close typing')
+        return
+
+    try:
+        if TYPING_SFX_CHANNEL:
+            TYPING_SFX_CHANNEL.stop()
+    except Exception:
+        pass
+    TYPING_SFX_CHANNEL = None
+
 STORY_PAGES = [
     {
         'art_file': 'first_image.txt',
@@ -316,15 +367,41 @@ def load_story_art(filename):
         return f'[{filename} not found]'
 
 
-def fade_in_lines(lines, char_delay=0.01, line_delay=0.15):
+def fade_in_lines(lines, char_delay=0.02, line_delay=0.25):
     for line in lines:
         display = ''
-        for ch in line:
-            display += ch
-            print(center_text(display), end='\r', flush=True)
-            time.sleep(char_delay)
-        print(center_text(display))
+        start_talking_sfx(line)
+        try:
+            for ch in line:
+                display += ch
+                print(center_text(display), end='\r', flush=True)
+                time.sleep(char_delay)
+            print(center_text(display))
+        finally:
+            stop_talking_sfx()
         time.sleep(line_delay)
+
+
+def show_centered_typewriter_message(text, char_delay=0.05, hold_delay=1.2, color=WHITE, bold=False):
+    clear_screen()
+    blank_lines = max(0, (get_terminal_size().lines - 3) // 2)
+    print('\n' * blank_lines)
+
+    display = ''
+    start_talking_sfx(text)
+    try:
+        for ch in text:
+            display += ch
+            line = center_text(color_text(display, color, bold=bold))
+            sys.stdout.write(line + '\r')
+            sys.stdout.flush()
+            time.sleep(char_delay)
+
+        sys.stdout.write(center_text(color_text(display, color, bold=bold)) + '\n')
+        sys.stdout.flush()
+    finally:
+        stop_talking_sfx()
+    time.sleep(hold_delay)
 
 
 def clear_screen():
@@ -359,8 +436,8 @@ def show_story_intro():
     show_fullscreen_prompt()
     for idx, page in enumerate(STORY_PAGES, start=1):
         show_story_page(idx, page)
-        if idx == len(STORY_PAGES):
-            play_music('epic_intro.mp3', loops=-1)
+    # Start epic intro right after the final Enter on the last story page.
+    play_music('epic_intro.mp3', loops=-1)
     clear_screen()
 
 
@@ -493,11 +570,15 @@ def final_boss_dialogue(lines, delay=0.06):
     print('\n' * 2)
     for line in lines:
         display = ''
-        for ch in line:
-            display += ch
-            sys.stdout.write(center_text(display) + '\r')
-            sys.stdout.flush()
-            time.sleep(delay)
+        start_talking_sfx(line)
+        try:
+            for ch in line:
+                display += ch
+                sys.stdout.write(center_text(display) + '\r')
+                sys.stdout.flush()
+                time.sleep(delay)
+        finally:
+            stop_talking_sfx()
         sys.stdout.write('\n')
         sys.stdout.flush()
         time.sleep(0.7)
@@ -650,6 +731,11 @@ def run_final_boss(player):
         print_centered(color_text('Tukšums izjūk. Gaisma atgriežas.', GREEN, bold=True))
         time.sleep(2)
         print_centered(color_text('Tev izdevās. Bet atceries: Tukšums gaida atkal.', YELLOW))
+        if player.get('notes_found', 0) >= len(LORE_NOTES):
+            time.sleep(2)
+            print_centered(color_text('Kad pagriezies uz izeju, no alas dziļuma atskan tava paša balss.', RED, bold=True))
+            time.sleep(2)
+            print_centered(color_text('Tā klusi pasaka: "beidzot esmu atradis ceļu ārā."', RED))
         player['final_boss_completed'] = True
         player['final_boss_chance'] = 0.0
         player['boss_wins'] = 0
@@ -697,6 +783,7 @@ def show_inventory_status(player):
         else:
             print_centered(color_text(f"{name}: 0 vienības", RED, bold=True))
             print_centered(color_text(f"   {description}", DIM))
+    print_centered(color_text(f"Atrastas piezīmes: {player.get('notes_found', 0)}/{len(LORE_NOTES)}", MAGENTA, bold=True))
     print()
 
 
@@ -832,11 +919,20 @@ def show_items_catalog(player, in_combat=False, monster=None):
             print_centered(color_text(label, CYAN if count > 0 else RED))
             print_centered(color_text(f"   {item['description']}", DIM))
             print()
-        print_centered(color_text("Ievadi numuru vai priekšmeta nosaukumu, lai apskatītu/darbotos ar to.", WHITE))
+        note_count = player.get('notes_found', 0)
+        print_centered(color_text(f"notes - Piezīmes ({note_count}/{len(LORE_NOTES)})", MAGENTA, bold=True))
+        print_centered(color_text('   Atvērt atrasto piezīmju arhīvu un izlasīt tās vēlreiz.', DIM))
+        print()
+        print_centered(color_text("Ievadi numuru, priekšmeta nosaukumu vai 'notes'.", WHITE))
         print_centered(color_text("Raksti 'back' vai 'atpakaļ' lai atgrieztos.", DIM))
         choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
         if choice in ('back', 'atpakaļ', 'atpakal'):
             return None
+        if choice in ('notes', 'note', 'piezīmes', 'piezimes'):
+            show_notes_archive(player)
+            if in_combat:
+                return None
+            continue
         if choice.isdigit() and 1 <= int(choice) <= len(ITEM_ORDER):
             item_key = ITEM_ORDER[int(choice) - 1]
         else:
@@ -860,6 +956,220 @@ def award_item_drops(player):
             player['items'][item_key] = player['items'].get(item_key, 0) + 1
             print_centered(color_text(f"{info['name']} nomesta! Tev tagad ir {player['items'][item_key]}.", CYAN))
             time.sleep(1)
+
+
+LORE_NOTES = [
+    {
+        'title': 'Piezīme 1: Virve vēl silta',
+        'author': 'M. Eglis, kartogrāfs',
+        'min_room': 2,
+        'text': [
+            'Ja kāds šo atrod, tad ala zem vecajiem kara ceļiem ir īsta.',
+            'Mēs iegājām sešatā. Katru pagriezienu iezīmējām ar sarkanu virvi un sveču taukiem.',
+            'Sākumā viss bija viegli. Radības bēga no lāpu gaismas, un no dziļuma nāca silts caurvējš.',
+            'Zem šiem tuneļiem ir aprakta pilsēta. Es to zinu. Es dzirdu durvis aizveramies tur, kur durvju nemaz nav.',
+            'Ja līdz rītausmai neatgriezīšos, pasaki Elīnai, ka man bija taisnība - mums bija jāiet dziļāk.',
+        ],
+    },
+    {
+        'title': 'Piezīme 2: Neuzticies atbalsīm',
+        'author': 'Seržants Veils',
+        'min_room': 4,
+        'text': [
+            'Neuzticies atbalsīm.',
+            'Mēs kliedzām, lai izmērītu kambaru dziļumu, bet skaņa, kas atgriezās, kavējās un bija nepareiza.',
+            'Tā atbildēja ar vārdiem. Vispirms ar manējo. Pēc tam ar kareivju vārdiem, kas jau sen krituši virszemē.',
+            'Rikis aizgāja balsij, kas skanēja tieši kā viņa māte. Mēs atradām tikai viņa laternu, vēl joprojām šūpojoties.',
+            'Virve ir pārgriezta gludi. Nekas šeit neplēš. Tas izvēlas.',
+        ],
+    },
+    {
+        'title': 'Piezīme 3: Akmenī ir zobi',
+        'author': 'I. Krūmiņš, racējs',
+        'min_room': 6,
+        'text': [
+            'Es domāju, ka skrāpēšana sienās ir ūdens spiediens.',
+            'Tā nav. Dažās vietās sienas ir mīkstas. Un siltas. Kad cirtu ar cirtni, akmens asiņoja melns un tunelis nodrebēja.',
+            'Mēs smējāmies, jo bailes padara cilvēkus par idiotiem.',
+            'Kaut kas dziļāk iesmējās pretī.',
+            'Ja redzi klintī rievas kā nagus, kas vilkti no iekšpuses, griezies atpakaļ, pirms tas iemācās tavu soli.',
+        ],
+    },
+    {
+        'title': 'Piezīme 4: Mēs saskaitījām septiņus',
+        'author': 'L. Silarajs',
+        'min_room': 9,
+        'text': [
+            'Pēc šķelšanās pie applūdušajām kāpnēm mēs bijām palikuši tikai pieci.',
+            'Pie nākamā ugunskura uz sienas saskaitījām septiņas ēnas.',
+            'Neviens nerunāja. Nevajadzēja. Mēs visi redzējām, ka tās divas liekās kustas puselpu lēnāk nekā mēs.',
+            'Dace pēc tam vairs negulēja. Viņa teica, ka ēnas pieliecas pie ausīm, kad liesma kļūst vājāka.',
+            'No rīta bija seši guļammaisi. Neviens neatcerējās, ka būtu uztaisījis vēl vienu.',
+        ],
+    },
+    {
+        'title': 'Piezīme 5: Izsalkums bez mutes',
+        'author': 'Brother Arnolds',
+        'min_room': 12,
+        'text': [
+            'Es nācu šurp, lai pierādītu, ka dziļās vietas ir tikai senas pasaules kauju rētas.',
+            'Es kļūdījos. Tā nav brūce. Tas ir izsalkums.',
+            'Radības nesargā apakšējos kambarus. Tās tos baro.',
+            'Katrs līķis, ko atstājām aiz sevis, bija pazudis, kad gājām tam koridoram garām vēlreiz. Ne kaulu. Ne drēbju. Tikai mitrs karstums.',
+            'Ja virszeme šīs alas aizzīmogos, tad nevis, lai mūs nelaistu iekšā, bet lai šo izsalkumu nelaistu ārā.',
+        ],
+    },
+    {
+        'title': 'Piezīme 6: Mira uzrakstīja manu vārdu',
+        'author': 'T. Ozols',
+        'min_room': 15,
+        'text': [
+            'Mira nomira pirms trim kambariem. Es pats viņu apraku zem balta akmens pārkares.',
+            'Šonakt atradu rakstītu ziņu uz sienas viņas rokrakstā.',
+            'TOM NĀC ZEMĀK. DURVIS IR ATVĒRTAS.',
+            'Burti vēl bija mitri. Tie smaržoja pēc dzelzs un veca lietus.',
+            'Esmu aptinis rokas ar drānu, jo katru reizi, kad aizmiegu, mostos ar zemi zem nagiem.',
+        ],
+    },
+    {
+        'title': 'Piezīme 7: Tie valkā mūs',
+        'author': 'nezināms',
+        'min_room': 18,
+        'text': [
+            'Pazudušie nav miruši. Ne gluži.',
+            'Es vienu no viņiem ieraudzīju tumsā, kad mana laterna izdzisa. Tam vēl bija Andra seja, bet smaids bija pārāk plats, it kā to kāds vilktu no galvaskausa iekšpuses.',
+            'Tas atdarināja viņa gaitu, klepu, pat to, kā viņš aiz bailēm pieskārās nazim pie jostas.',
+            'Kad pasaucu viņa vārdu, viss pārējais tunelī apklusa, it kā pati ala gaidītu manu atbildi.',
+            'Ja šeit lejā satiec kādu pazīstamu, neļauj viņam nostāties tev aiz muguras.',
+        ],
+    },
+    {
+        'title': 'Piezīme 8: Pēdējā lapa',
+        'author': 'bez paraksta',
+        'min_room': 22,
+        'text': [
+            'Kamēr tu šo lasi, tas jau zina, cik ātri tu elpo.',
+            'Tas iemācās katru skrējēju pēc baiļu ritma. Pēc tam izdobt tuneļus šajā formā un gaida.',
+            'Iepriekšējās piezīmes tika atstātas tev ar nolūku. Cerība aizceļo dziļāk par kliedzieniem.',
+            'Apakšā nekad nav bijis ceļš ārā. Tikai ceļš uz iekšu - tajā, kas mūs atceras pēc tam, kad tumsa ir beigusi valkāt mūsu vārdus.',
+            'Ja šī lapa ir silta, negriezies apkārt. Tas nozīmē, ka esmu tuvu un beidzot skanu tieši kā tu.',
+        ],
+    },
+]
+
+LORE_DROP_BASE_CHANCE = 0.07
+LORE_DROP_ROOM_BONUS = 0.003
+LORE_DROP_MAX_CHANCE = 0.16
+
+
+def get_next_lore_note(player):
+    found_count = player.get('notes_found', 0)
+    if found_count >= len(LORE_NOTES):
+        return None, found_count
+    note = LORE_NOTES[found_count]
+    if player.get('room_number', 1) < note['min_room']:
+        return None, found_count
+    return note, found_count
+
+
+def get_collected_lore_notes(player):
+    found_count = max(0, min(player.get('notes_found', 0), len(LORE_NOTES)))
+    return LORE_NOTES[:found_count]
+
+
+def show_lore_note(player, note, note_index, archive=False):
+    clear_screen()
+    stop_music()
+    play_music('messages.mp3', loops=-1)
+
+    width = min(88, max(58, get_terminal_width() - 8))
+    top = '╔' + '═' * (width - 2) + '╗'
+    sep = '╠' + '═' * (width - 2) + '╣'
+    bot = '╚' + '═' * (width - 2) + '╝'
+
+    print()
+    print(center_text(color_text(top, CYAN)))
+    heading = 'ATRASTA PIEZĪME' if not archive else 'PIEZĪMJU ARHĪVS'
+    print(center_text(color_text(heading.center(width - 2), YELLOW, bold=True)))
+    print(center_text(color_text(sep, CYAN)))
+    print(center_text(color_text(note['title'], MAGENTA, bold=True)))
+    print(center_text(color_text(f"Autors: {note['author']}", DIM)))
+    print()
+    for line in note['text']:
+        print(center_text(color_text(line, WHITE)))
+        time.sleep(0.45)
+    print()
+
+    if note_index == len(LORE_NOTES) - 1:
+        print(center_text(color_text('Papīrs ir mitrs. Pirms mirkļa tas vēl nebija.', RED, bold=True)))
+    else:
+        print(center_text(color_text(f"Piezīme {note_index + 1}/{len(LORE_NOTES)}", DIM)))
+
+    print(center_text(color_text(bot, CYAN)))
+    print()
+    prompt_text = 'Nospied Enter, lai turpinātu.' if not archive else 'Nospied Enter, lai atgrieztos pie piezīmēm.'
+    print(center_text(color_text(prompt_text, GREEN, bold=True)))
+    input(center_prompt(''))
+    stop_music()
+    play_music('main.mp3', loops=-1)
+
+
+def show_notes_archive(player):
+    while True:
+        clear_screen()
+        collected_notes = get_collected_lore_notes(player)
+
+        print_centered(color_text('=== PIEZĪMJU ARHĪVS ===', YELLOW, bold=True))
+        print()
+
+        if not collected_notes:
+            print_centered(color_text('Tu vēl neesi atradis nevienu piezīmi.', RED, bold=True))
+            print()
+            print_centered(color_text("Nospied Enter, lai atgrieztos pie priekšmetiem.", GREEN, bold=True))
+            input(center_prompt(''))
+            return
+
+        for index, note in enumerate(collected_notes, start=1):
+            print_centered(color_text(f"{index}. {note['title']}", MAGENTA, bold=True))
+            print_centered(color_text(f"   {note['author']}", DIM))
+            print()
+
+        print_centered(color_text('Ievadi piezīmes numuru, lai to izlasītu vēlreiz.', WHITE))
+        print_centered(color_text("Raksti 'back' vai 'atpakaļ', lai atgrieztos pie priekšmetiem.", DIM))
+        choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+
+        if choice in ('back', 'atpakaļ', 'atpakal'):
+            return
+        if not choice.isdigit():
+            print_centered(color_text('Nepareiza izvēle! Mēģini vēlreiz.', RED))
+            time.sleep(1)
+            continue
+
+        note_number = int(choice)
+        if not 1 <= note_number <= len(collected_notes):
+            print_centered(color_text('Tādas piezīmes nav. Mēģini vēlreiz.', RED))
+            time.sleep(1)
+            continue
+
+        show_lore_note(player, collected_notes[note_number - 1], note_number - 1, archive=True)
+
+
+def maybe_drop_lore_note(player, monster):
+    if monster.get('is_boss'):
+        return
+
+    note, note_index = get_next_lore_note(player)
+    if note is None:
+        return
+
+    drop_chance = min(LORE_DROP_MAX_CHANCE, LORE_DROP_BASE_CHANCE + player.get('room_number', 1) * LORE_DROP_ROOM_BONUS)
+    if random.random() >= drop_chance:
+        return
+
+    player['notes_found'] = note_index + 1
+    print_centered(color_text('Tu atradi saplēstu piezīmi no cita alas skrējēja...', YELLOW, bold=True))
+    time.sleep(1.5)
+    show_lore_note(player, note, note_index)
 
 
 def scale_ascii_art(text, max_width=None, max_height=None, allow_expand=False):
@@ -972,6 +1282,42 @@ except Exception as e:
     print(f"Error loading monsters.csv: {e}")
     sys.exit(1)
 
+# ---------------------------------------------------------------------------
+# Monster scaling helpers
+# ---------------------------------------------------------------------------
+
+# Parameters defining the progressive scaling curve per difficulty.
+# 'base': stat multiplier at room 1
+# 'step': multiplier increase per room
+# 'cap':  maximum multiplier reachable
+DIFFICULTY_PARAMS = {
+    'easy':   {'base': 0.65, 'step': 0.015, 'cap': 1.50},
+    'normal': {'base': 0.80, 'step': 0.020, 'cap': 2.00},
+    'hard':   {'base': 1.00, 'step': 0.030, 'cap': 2.50},
+}
+
+# Flat multiplier applied to boss stats only (bosses already scale by index).
+BOSS_DIFFICULTY_MULT = {'easy': 0.80, 'normal': 1.00, 'hard': 1.25}
+
+
+def get_monster_scale(room_number: int, difficulty: str) -> float:
+    """Return the stat multiplier for a regular monster in the given room."""
+    params = DIFFICULTY_PARAMS.get(difficulty, DIFFICULTY_PARAMS['normal'])
+    scale = params['base'] + (room_number - 1) * params['step']
+    return min(scale, params['cap'])
+
+
+def apply_monster_scaling(monster: dict, scale: float) -> None:
+    """Multiply hp, max_hp, attack, and defense of a monster dict by scale (in-place).
+
+    XP reward is intentionally left unchanged so player progression stays fair.
+    All stat values are floored at 1.
+    """
+    for stat in ('hp', 'max_hp', 'attack', 'defense'):
+        if stat in monster:
+            monster[stat] = max(1, int(monster[stat] * scale))
+
+
 def load_monster(boss: bool = False):
     """Return a monster template.
 
@@ -991,15 +1337,21 @@ def load_monster(boss: bool = False):
     monster['accuracy'] = 1.0
     monster['accuracy_duration'] = 0
     monster['flinch'] = 0
-    monster['accuracy'] = 1.0
-    monster['accuracy_duration'] = 0
-    monster['flinch'] = 0
-    # Load ASCII art if exists
-    art_path = os.path.join(BASE_DIR, 'Monstri', monster['name'])
-    try:
-        with open(art_path, 'r', encoding='utf-8') as f:
-            monster['art'] = f.read()
-    except FileNotFoundError:
+    # Load ASCII art if exists; support both bare filenames and .txt files.
+    art_candidates = [
+        os.path.join(BASE_DIR, 'Monstri', monster['name']),
+        os.path.join(BASE_DIR, 'Monstri', f"{monster['name']}.txt"),
+    ]
+    monster['art'] = None
+    for art_path in art_candidates:
+        try:
+            with open(art_path, 'r', encoding='utf-8') as f:
+                monster['art'] = f.read()
+                break
+        except FileNotFoundError:
+            continue
+
+    if monster['art'] is None:
         monster['art'] = f'No ASCII art for {monster["name"]}'
     # Ensure a max_hp field for HP bar display
     monster['max_hp'] = monster.get('hp', 0)
@@ -1049,24 +1401,24 @@ def level_up(player):
             play_sound('atrb_up.mp3')
             player["str"] += 1
             points -= 1
-            print("Uzbrukums palielināts!")
+            print_centered(color_text("Uzbrukums palielināts!", GREEN, bold=True))
         elif choice == "defense":
             play_sound('atrb_up.mp3')
             player["defense"] += 1
             points -= 1
-            print("Aizsardzība palielināta!")
+            print_centered(color_text("Aizsardzība palielināta!", GREEN, bold=True))
         elif choice == "max_health":
             play_sound('atrb_up.mp3')
             player["max_hp"] += 5
             player["hp"] = player["max_hp"]  # Heal to full
             points -= 1
-            print("Maksimālais HP palielināts!")
+            print_centered(color_text("Maksimālais HP palielināts!", GREEN, bold=True))
         elif choice == "quit" or choice == "iziet":
-            print("Tu izlēmi iziet no spēles.")
+            print_centered(color_text("Tu izlēmi iziet no spēles.", RED, bold=True))
             player['hp'] = 0  # Force game over
             return
         else:
-            print("Nepareiza izvēle!")
+            print_centered(color_text("Nepareiza izvēle!", RED, bold=True))
 
 def run_combat(player, monster):
     defending = False
@@ -1191,6 +1543,7 @@ def run_combat(player, monster):
         player['xp'] += monster['xp_reward']
         print_centered(color_text(f"Tu ieguvi {monster['xp_reward']} XP. Kopā XP: {player['xp']}", CYAN))
         award_item_drops(player)
+        maybe_drop_lore_note(player, monster)
         return True
     else:
         print_centered(color_text(f"\nTu zaudēji pret {monster['name']}.", RED, bold=True))
@@ -1211,12 +1564,16 @@ def show_scary_event():
     width = get_terminal_width()
     blank_lines = max(0, (get_terminal_size().lines - 6) // 2)
     print('\n' * blank_lines)
-    for i in range(1, len(text) + 1):
-        fragment = center_text(text[:i])
-        padding = max(0, width - len(strip_ansi(fragment)))
-        sys.stdout.write(fragment + ' ' * padding + '\r')
-        sys.stdout.flush()
-        time.sleep(0.08)
+    start_talking_sfx(text)
+    try:
+        for i in range(1, len(text) + 1):
+            fragment = center_text(text[:i])
+            padding = max(0, width - len(strip_ansi(fragment)))
+            sys.stdout.write(fragment + ' ' * padding + '\r')
+            sys.stdout.flush()
+            time.sleep(0.08)
+    finally:
+        stop_talking_sfx()
     sys.stdout.write('\n\n')
     sys.stdout.flush()
     time.sleep(1.5)
@@ -1315,25 +1672,46 @@ def render_side_by_side(*arts, spacing=6):
     return center_ascii('\n'.join(combined))
 
 
+MAIN_MENU_FLAVOR_LINES = [
+    'Dziļumā nav ceļa atpakaļ. Ir tikai nākamais solis.',
+    'Katrs skrējējs meklē slavu. Ala meklē ko citu.',
+    'Ja dzirdi savu vārdu no tumsas, neatbildi.',
+    'Lejā valda klusums, kas atceras katru kliedzienu.',
+]
+
+
 def show_main_menu():
-    stop_music()
     while True:
         clear_screen()
-        print(render_ascii_art(CAVE_RUNNER_LOGO, allow_expand=True))
-        print('\n')
-        print(render_side_by_side(START_BUTTON_ART, RULES_BUTTON_ART, QUIT_BUTTON_ART))
-        print('\n')
-        print(center_text(color_text('START', CYAN, bold=True).ljust(26) + ' ' * 6 + color_text('RULES', MAGENTA, bold=True).center(24) + ' ' * 6 + color_text('QUIT', RED, bold=True).rjust(18)))
-        print('\n')
-        print_centered(color_text('Ievadi: start, rules vai quit', YELLOW, bold=True))
-        print('\n' + '=' * get_terminal_width())
+        width = get_terminal_width()
+        panel_width = min(92, max(58, width - 18))
+        top = '╔' + '═' * (panel_width - 2) + '╗'
+        sep = '╟' + '─' * (panel_width - 2) + '╢'
+        bot = '╚' + '═' * (panel_width - 2) + '╝'
+
+        print(render_ascii_art(CAVE_RUNNER_LOGO, max_width=min(width, 108), allow_expand=False))
+        print()
+        print(center_text(color_text('AN ENDLESS DESCENT AWAITS', DIM)))
+        print(center_text(color_text(random.choice(MAIN_MENU_FLAVOR_LINES), MAGENTA, bold=True)))
+        print()
+
+        print_centered(color_text(top, CYAN))
+        print_centered(color_text('  GALVENĀ IZVĒLNE  '.center(panel_width - 2), YELLOW, bold=True))
+        print_centered(color_text(sep, CYAN))
+        print_centered(color_text(' 1 ', CYAN, bold=True) + color_text('START', WHITE, bold=True) + color_text('  - Sāc skrējienu alās', DIM))
+        print_centered(color_text(' 2 ', MAGENTA, bold=True) + color_text('RULES', WHITE, bold=True) + color_text('  - Apskatīt spēles noteikumus', DIM))
+        print_centered(color_text(' 3 ', RED, bold=True) + color_text('QUIT', WHITE, bold=True) + color_text('   - Iziet no spēles', DIM))
+        print_centered(color_text(sep, CYAN))
+        print_centered(color_text('Ievadi: 1/2/3 vai start/rules/quit', WHITE))
+        print_centered(color_text(bot, CYAN))
+        print()
         print_centered(color_text('Tava izvēle:', GREEN, bold=True))
         choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
-        if choice == "start":
+        if choice in ("1", "start"):
             return
-        elif choice == "rules":
+        elif choice in ("2", "rules"):
             show_rules()
-        elif choice == "quit":
+        elif choice in ("3", "quit"):
             print(center_text("Paldies par spēlēšanu!"))
             sys.exit(0)
         else:
@@ -1355,9 +1733,44 @@ def show_rules():
     input(center_prompt(''))
 
 
+def choose_difficulty() -> str:
+    """Show a difficulty selection screen and return 'easy', 'normal', or 'hard'."""
+    while True:
+        clear_screen()
+        box_width = min(72, max(50, get_terminal_width() - 10))
+        border_top = '╔' + '═' * (box_width - 2) + '╗'
+        border_mid = '╠' + '═' * (box_width - 2) + '╣'
+        border_bot = '╚' + '═' * (box_width - 2) + '╝'
+
+        print()
+        print(center_text(color_text(border_top, CYAN)))
+        print(center_text(color_text('IZVĒLIES GRŪTĪBU PAKĀPI'.center(box_width - 2), YELLOW, bold=True)))
+        print(center_text(color_text(border_mid, CYAN)))
+        print()
+        print(center_text(
+            color_text('easy  ', GREEN, bold=True) +
+            color_text('  Monstri sāk vāji (0.65x) un lēnāk kļūst stiprāki.', WHITE)))
+        print(center_text(
+            color_text('normal', YELLOW, bold=True) +
+            color_text('  Ieteicamais. Monstri sāk ar 0.80x un izaug.', WHITE)))
+        print(center_text(
+            color_text('hard  ', RED, bold=True) +
+            color_text('  Monstri ir pilnā spēkā no 1. istabas.', WHITE)))
+        print()
+        print(center_text(color_text(border_bot, CYAN)))
+        print()
+        print(center_text(color_text('Tava izvēle (easy / normal / hard):', GREEN, bold=True)))
+        choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+        if choice in ('easy', 'normal', 'hard'):
+            return choice
+        print(center_text(color_text('Lūdzu raksti: easy, normal vai hard', RED)))
+        time.sleep(1)
+
+
 def start_game():
     show_story_intro()
     show_main_menu()
+    difficulty = choose_difficulty()
     play_music('main.mp3', loops=-1)
     
     # --- 2. Mainīgie spēlētāja stāvoklim ---
@@ -1376,6 +1789,8 @@ def start_game():
         "boss_wins": 0,
         "final_boss_chance": 0.0,
         "final_boss_completed": False,
+        "notes_found": 0,
+        "difficulty": difficulty,
         "items": {
             ATTACK_POTION_KEY: 0,
             EXTRA_LIFE_KEY: 0,
@@ -1405,6 +1820,7 @@ def start_game():
             generated['art'] = template.get('art', generated.get('art', f"No ASCII art for {generated.get('name')}") )
             # Ensure max_hp present for HP bar display
             generated['max_hp'] = generated.get('hp', generated.get('max_hp', 0))
+            apply_monster_scaling(generated, BOSS_DIFFICULTY_MULT.get(player['difficulty'], 1.0))
             generated['is_boss'] = True
             monster = generated
             # Big boss intro banner
@@ -1446,6 +1862,8 @@ def start_game():
         else:
             print(f"--- ISTABA NR. {player['room_number']} ---")
             monster = load_monster()
+            scale = get_monster_scale(player['room_number'], player['difficulty'])
+            apply_monster_scaling(monster, scale)
             print(f"Tu cīnies ar {monster['name']}!")
             print(render_ascii_art(monster['art']))
             time.sleep(1)
@@ -1521,8 +1939,7 @@ def start_game():
 
         # Palielinām istabu skaitu pēc izvēles
         player["room_number"] += 1
-        print("\nTu dodies uz nākamo istabu...")
-        time.sleep(1.5)
+        show_centered_typewriter_message("Tu dodies uz nākamo istabu...", char_delay=0.06, hold_delay=1.2, color=CYAN, bold=True)
 
     if player["hp"] <= 0:
         play_music('You_Died.mp3', loops=-1)
