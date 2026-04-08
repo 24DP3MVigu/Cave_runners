@@ -1,0 +1,34 @@
+=== Crash detected ===
+Traceback (most recent call last):
+  File "c:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1539, in <module>
+    start_game()
+    ~~~~~~~~~~^^
+  File "c:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1440, in start_game
+    combat_result = run_combat(player, monster)
+  File "c:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1069, in run_combat
+    print_action_menu(player)
+    ^^^^^^^^^^^^^^^^^
+NameError: name 'print_action_menu' is not defined
+
+=== Crash detected ===
+Traceback (most recent call last):
+  File "c:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1551, in <module>
+    start_game()
+    ~~~~~~~~~~^^
+  File "c:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1484, in start_game
+    choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+             ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+EOFError: EOF when reading a line
+
+=== Crash detected ===
+Traceback (most recent call last):
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1551, in <module>
+    start_game()
+    ~~~~~~~~~~^^
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1452, in start_game
+    combat_result = run_combat(player, monster)
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1083, in run_combat
+    action = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+             ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [WinError 6] The handle is invalid
+

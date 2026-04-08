@@ -6,7 +6,15 @@ import random
 import re
 import shutil
 import ctypes
+import traceback
 from ctypes import wintypes
+
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
 
 from boss import is_boss_room, generate_boss, boss_intro_text, boss_special_action
 
@@ -226,7 +234,7 @@ STORY_PAGES = [
         'art_file': 'seventh_image.txt',
         'lines': [
             'Un ja tu pierādīsi, ka esi cienīgs... vai pietiekami muļķis...',
-            'Tu vari pamodināt Slepeno Bosu — patieso bezdibeņa sargu.',
+            'Tu vari pamodināt Tukšumu — patieso bezdibeņa sargu.',
         ],
     },
 ]
@@ -339,8 +347,8 @@ def show_fullscreen_prompt():
     term_size = get_terminal_size()
     blank_lines = max(0, (term_size.lines - 4) // 2)
     print('\n' * blank_lines)
-    print(center_text('Pārliecinies, ka spēle ir FULL SCREEN.'))
-    print(center_text('Nospied Enter, lai sāktu.'))
+    print(center_text('Make sure the game is FULL SCREEN.'))
+    print(center_text('Press Enter to start.'))
     input(center_prompt(''))
     clear_screen()
 
@@ -354,6 +362,18 @@ def show_story_intro():
         if idx == len(STORY_PAGES):
             play_music('epic_intro.mp3', loops=-1)
     clear_screen()
+
+
+def print_action_menu(player):
+    print_centered(color_text('=== Tavas darbības ===', YELLOW, bold=True))
+    print_centered(color_text('attack - Uzbrukt pretiniekam', GREEN))
+    print_centered(color_text('defense - Samazināt nākamā uzbrukuma damage', MAGENTA))
+    print_centered(color_text('item - Atvērt inventāru un izmantot priekšmetu', CYAN))
+    print_centered(color_text('quit - Pamest cīņu un spēli', RED))
+    item_count = sum(player.get('items', {}).values())
+    if item_count > 0:
+        print_centered(color_text(f'Tavā inventārā ir {item_count} item(s).', BLUE))
+    print()
 
 
 ATTACK_POTION_KEY = 'attack_potion'
@@ -445,8 +465,199 @@ def load_item_art(item_key):
     except FileNotFoundError:
         return f'No art for {info.get("name", item_key)}'
 
+FINAL_BOSS_DIR = os.path.join(BASE_DIR, 'final_boss_fight')
+FINAL_BOSS_ARTS = {
+    1: 'standing_up.txt',
+    2: 'armored_enhanced_standing.txt',
+    3: 'bloodysmilezoomed.txt',
+    4: 'Sitting_interaction.txt',
+}
 
-def print_action_menu(player=None):
+
+def load_final_boss_art(filename):
+    art_path = os.path.join(FINAL_BOSS_DIR, filename)
+    try:
+        with open(art_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        return f'No art for {filename}'
+
+
+def render_final_boss_art(phase):
+    filename = FINAL_BOSS_ARTS.get(phase, 'standing_up.txt')
+    return render_ascii_art(load_final_boss_art(filename), max_width=min(get_terminal_width(), 90), allow_expand=True)
+
+
+def final_boss_dialogue(lines, delay=0.06):
+    clear_screen()
+    print('\n' * 2)
+    for line in lines:
+        display = ''
+        for ch in line:
+            display += ch
+            sys.stdout.write(center_text(display) + '\r')
+            sys.stdout.flush()
+            time.sleep(delay)
+        sys.stdout.write('\n')
+        sys.stdout.flush()
+        time.sleep(0.7)
+    print()
+    time.sleep(1)
+
+
+def run_final_boss(player):
+    if player.get('final_boss_completed'):
+        return
+
+    stop_music()
+    clear_screen()
+    final_boss_dialogue([
+        'Something wakes in the deepest dark...',
+        'You can feel Tukšums stir beneath the earth.',
+        'The Void: "Another fool dares disturb my hunger."',
+        'Cave Runner: "I came to end you, not to run."',
+        'The Void: "Then take your last breath, mortal."',
+    ])
+
+    print(render_final_boss_art(1))
+    print('\n')
+    print(center_text(color_text('MERCY or CHALLENGE?', YELLOW, bold=True)))
+    print(center_text(color_text('Type "mercy" to surrender, or "challenge" to fight.', WHITE)))
+
+    while True:
+        choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+        if choice == 'mercy':
+            play_sound('mercy.mp3')
+            clear_screen()
+            print(center_text(color_text('Your defiance fades as Tukšums swallows your hope...', RED, bold=True)))
+            time.sleep(2)
+            print(center_text(color_text('GAME OVER', RED, bold=True)))
+            time.sleep(2)
+            sys.exit(0)
+        elif choice == 'challenge':
+            break
+        else:
+            print(center_text('Nepareiza izvēle! Izvēlies "mercy" vai "challenge".'))
+
+    boss = {
+        'name': 'The Void',
+        'hp': 180,
+        'max_hp': 180,
+        'attack': 16,
+        'defense': 10,
+        'phase': 1,
+        'is_boss': True,
+    }
+
+    play_music('messages.mp3', loops=-1)
+    time.sleep(1)
+
+    defending = False
+    while player['hp'] > 0 and boss['hp'] > 0:
+        clear_screen()
+        print_centered(color_text('!!! FINAL BOSS: THE VOID !!!', RED, bold=True))
+        print(render_final_boss_art(boss['phase']))
+        display_hp_bar(player['hp'], player['max_hp'], 'Tavs HP', centered=True)
+        display_hp_bar(boss['hp'], boss['max_hp'], "The Void HP", centered=True)
+        print_centered(color_text(f"Spēks: {player['str']} | Aizsardzība: {player.get('defense', 0)}", MAGENTA))
+        print_action_menu(player)
+        print_centered(color_text('Tava izvēle:', GREEN, bold=True))
+        action = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+
+        if action == 'attack':
+            attack_bonus = 5 if player.get('attack_potion_turns', 0) > 0 else 0
+            dmg, crit = final_damage(player['str'] + attack_bonus, boss['defense'])
+            boss['hp'] -= dmg
+            msg = f"Tu uzbruki un nodarīji {dmg} damage"
+            if crit:
+                msg += " (kritiskais sitiens!)"
+            if attack_bonus > 0:
+                msg += " (Attack Potion bonus!)"
+            print_centered(color_text(msg, GREEN))
+            play_sound('attack.mp3')
+            if player.get('attack_potion_turns', 0) > 0:
+                print_centered(color_text('Attack Potion efektu joprojām izmanto kaujas laikā.', DIM))
+            if player.get('blind_turns', 0) > 0:
+                player['blind_turns'] -= 1
+                if player['blind_turns'] == 0:
+                    player['accuracy'] = 1.0
+                    print_centered(color_text('Tava redze atgriežas normālā stāvoklī.', GREEN))
+        elif action == 'defense':
+            defending = True
+            print_centered(color_text('Tu sagatavojies aizsardzībai.', YELLOW))
+        elif action == 'item':
+            result = show_items_catalog(player, in_combat=True, monster=boss)
+            if result == 'used':
+                time.sleep(1)
+                continue
+            if result == 'teleported':
+                print_centered(color_text('Šeit nav kur izvēlēties paslēpties.', RED))
+                time.sleep(1)
+                continue
+            continue
+        elif action in ('quit', 'iziet'):
+            print_centered(color_text('Tu izlēmi pamest kauju. Tukšums to patiesi novērtē.', RED, bold=True))
+            player['hp'] = 0
+            break
+        else:
+            print_centered(color_text('Nepareiza izvēle! Pamēģini vēlreiz.', RED))
+            time.sleep(1)
+            continue
+
+        time.sleep(1)
+
+        if boss['hp'] <= 120 and boss['phase'] == 1:
+            boss['phase'] = 2
+            boss['attack'] += 4
+            boss['defense'] += 3
+            print_centered(color_text('Tukšums sakustas. Tas kļūst spēcīgāks un cietāks.', RED, bold=True))
+            play_sound('messages.mp3')
+            time.sleep(2)
+        elif boss['hp'] <= 60 and boss['phase'] == 2:
+            boss['phase'] = 3
+            boss['attack'] += 6
+            boss['defense'] += 2
+            print_centered(color_text('The Void uzspridzina realitāti. Saule pazūd.', RED, bold=True))
+            play_sound('messages.mp3')
+            time.sleep(2)
+
+        if boss['hp'] > 0:
+            def_mod = player.get('defense', 0)
+            if defending:
+                def_mod += 6
+                defending = False
+
+            if boss['phase'] == 3 and random.random() < 0.35:
+                carve = int(boss['attack'] * 1.4)
+                player['hp'] -= carve
+                print_centered(color_text(f'The Void tears through your armor for {carve} damage!', RED, bold=True))
+            else:
+                dmg, crit = final_damage(boss['attack'], def_mod)
+                player['hp'] -= dmg
+                msg = f'The Void uzbruka un nodarīja {dmg} damage'
+                if crit:
+                    msg += ' (kritiskais sitiens!)'
+                print_centered(color_text(msg, RED))
+            play_sound('enemy_hit.mp3')
+            if player.get('hp', 0) <= 0:
+                break
+            time.sleep(1)
+
+    stop_music()
+    if player['hp'] > 0 and boss['hp'] <= 0:
+        play_sound('messages.mp3')
+        clear_screen()
+        print_centered(color_text('Tukšums izjūk. Gaisma atgriežas.', GREEN, bold=True))
+        time.sleep(2)
+        print_centered(color_text('Tev izdevās. Bet atceries: Tukšums gaida atkal.', YELLOW))
+        player['final_boss_completed'] = True
+        player['final_boss_chance'] = 0.0
+        player['boss_wins'] = 0
+        time.sleep(2)
+        play_music('main.mp3', loops=-1)
+    elif player['hp'] <= 0:
+        print_centered(color_text('Tavs ceļš beidzās Tukšuma priekšā.', RED, bold=True))
+        time.sleep(2)
     player = player or {}
     menu_width = min(80, max(50, get_terminal_width() - 16))
     top = '╔' + '═' * (menu_width - 2) + '╗'
@@ -738,20 +949,6 @@ def final_damage(attacker_attack, defender_defense):
 
 # Load monsters
 MONSTERS = []
-with open(os.path.join(os.path.dirname(__file__), 'monsters.csv'), 'r') as f:
-    reader = csv.DictReader(f)
-    for row in reader:
-        MONSTERS.append({
-            'name': row['name'],
-            'hp': int(row['hp']),
-            'attack': int(row['attack']),
-            'defense': int(row['defense']),
-            'xp_reward': int(row['xp_reward'])
-        })
-
-def load_monster():
-    monster = random.choice(MONSTERS).copy()  # Copy to avoid modifying original
-    monster['max_hp'] = monster['hp']  # Store initial HP for bar display
 monsters_csv = os.path.join(BASE_DIR, 'monsters.csv')
 try:
     with open(monsters_csv, 'r', encoding='utf-8') as f:
@@ -1176,6 +1373,9 @@ def start_game():
         "accuracy": 1.0,
         "blind_turns": 0,
         "attack_potion_turns": 0,
+        "boss_wins": 0,
+        "final_boss_chance": 0.0,
+        "final_boss_completed": False,
         "items": {
             ATTACK_POTION_KEY: 0,
             EXTRA_LIFE_KEY: 0,
@@ -1222,12 +1422,26 @@ def start_game():
                 break
             # On boss victory, show a larger congratulatory banner, then scary event
             if won:
+                player['boss_wins'] += 1
+                if player['boss_wins'] == 1:
+                    player['final_boss_chance'] = 0.01
+                else:
+                    player['final_boss_chance'] = min(1.0, player['final_boss_chance'] * 2)
+
                 print('\n' + '=' * get_terminal_width())
                 print(center_text('APSVEICAM! Tu pieveici Bosu!'))
                 print(center_text('Tu vari turpināt ceļu pa alu vai iziet.'))
                 print('=' * get_terminal_width() + '\n')
                 time.sleep(2)
                 show_scary_event()
+                if not player.get('final_boss_completed', False):
+                    chance_roll = random.random()
+                    if chance_roll < player.get('final_boss_chance', 0.0):
+                        print(center_text(color_text('A tear in the world opens... something ancient is stirring.', RED, bold=True)))
+                        time.sleep(2)
+                        run_final_boss(player)
+                        if player['hp'] <= 0:
+                            break
                 play_music('main.mp3', loops=-1)
         else:
             print(f"--- ISTABA NR. {player['room_number']} ---")
@@ -1287,6 +1501,14 @@ def start_game():
                     next_action = 'teleported'
                 else:
                     continue
+            elif choice in ('void', 'tukšums', 'thevoid', 'summonvoid'):
+                print(center_text(color_text('Secret ritual activated... Tukšums answers.', RED, bold=True)))
+                time.sleep(1.5)
+                run_final_boss(player)
+                if player['hp'] <= 0:
+                    next_action = 'exit'
+                else:
+                    continue
             else:
                 print(center_text("Nepareiza izvēle! Mēģini vēlreiz."))
                 time.sleep(1)
@@ -1325,4 +1547,13 @@ def start_game():
                 print(center_text("Nepareiza izvēle! Ievadi 'j' vai 'n'."))
 
 if __name__ == "__main__":
-    start_game()
+    try:
+        start_game()
+    except Exception:
+        error_log_path = os.path.join(os.path.dirname(__file__), '..', 'game_crash.log')
+        with open(error_log_path, 'a', encoding='utf-8') as log_file:
+            log_file.write('=== Crash detected ===\n')
+            log_file.write(traceback.format_exc())
+            log_file.write('\n')
+        print('A crash was detected. Details have been written to game_crash.log.')
+        print('Please send the contents of that file if the game closes unexpectedly.')
