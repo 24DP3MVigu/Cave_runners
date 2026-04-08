@@ -22,6 +22,57 @@ WHITE = '\033[97m'
 
 # Base directory for data files (ensures script works when run from any cwd)
 BASE_DIR = os.path.dirname(__file__)
+STORY_DIR = os.path.normpath(os.path.join(BASE_DIR, '..', 'Story'))
+
+STORY_PAGES = [
+    {
+        'art_file': 'first_image.txt',
+        'lines': [
+            'Sen cilvēki dzīvoja',
+            'mierīgi uz virsmas.',
+            'Dziļi zem zemes gulēja',
+            'plaši, nebeidzami tīkli',
+        ],
+    },
+    {
+        'art_file': 'picture_two.txt',
+        'lines': [
+            'Šīs senās alas bija mājvieta dīvainiem un spēcīgiem briesmoņiem.',
+            'Tie bija izauguši tumsā gadu tūkstošiem paaudzēs.',
+        ],
+    },
+    {
+        'art_file': 'third_image.txt',
+        'lines': [
+            'Ziņkāres un mantkārības vadīti, cilvēki devās dziļi alās.',
+            'Liktenīgajos tuneļos starp abām rasēm izcēlās liels karš.',
+        ],
+    },
+    {
+        'art_file': 'fourth_image.txt',
+        'lines': [
+            'Pēc daudzām kaujām cilvēki ar varenu maģiju aizzīmogoja alu dziļākās un bīstamākās vietas.',
+            'Taču alas... tās bija patiesi bezgalīgas.',
+        ],
+    },
+    {
+        'art_file': 'fifth_image.txt',
+        'lines': [
+            'Daudzus gadus vēlāk... Leģendas vēsta par Bezgalīgajām alām.',
+            'Tikai drosmīgākie karotāji — Alu skrējēji (Cave Runners) — uzdrošinās tajās ieiet.',
+        ],
+    },
+    {
+        'art_file': 'sixth_image.txt',
+        'lines': [
+            'Cīnies ar briesmoņiem un kļūsti spēcīgāks, virzoties cauri telpām.',
+            'Katrā desmitajā telpā tevi gaida varens boss, lai pārbaudītu tavu spēku.',
+            'Un ja tu pierādīsi, ka esi cienīgs... vai pietiekami muļķis...',
+            'Tu vari pamodināt Slepeno Bosu — patieso bezdibeņa sargu.',
+        ],
+    },
+]
+
 
 def get_terminal_size():
     try:
@@ -74,6 +125,52 @@ def center_ascii(text):
 def print_centered(text):
     for line in str(text).splitlines():
         print(center_text(line))
+
+
+def maximize_console():
+    if os.name == 'nt':
+        os.system('mode con: cols=160 lines=48')
+    else:
+        # Attempt to expand the terminal on UNIX-like systems.
+        sys.stdout.write('\x1b[8;48;160t')
+        sys.stdout.flush()
+
+
+def load_story_art(filename):
+    art_path = os.path.join(STORY_DIR, filename)
+    try:
+        with open(art_path, 'r', encoding='utf-8', errors='replace') as f:
+            return f.read()
+    except FileNotFoundError:
+        return f'[{filename} not found]'
+
+
+def fade_in_lines(lines, char_delay=0.01, line_delay=0.15):
+    for line in lines:
+        display = ''
+        for ch in line:
+            display += ch
+            print(center_text(display), end='\r', flush=True)
+            time.sleep(char_delay)
+        print(center_text(display))
+        time.sleep(line_delay)
+
+
+def show_story_page(page_index, page):
+    clear_screen()
+    art = load_story_art(page['art_file'])
+    print(center_ascii(art))
+    print('\n')
+    fade_in_lines(page['lines'])
+    print('\n' + center_text('[Nospied Enter, lai turpinātu]'))
+    input(center_prompt(''))
+
+
+def show_story_intro():
+    maximize_console()
+    for idx, page in enumerate(STORY_PAGES, start=1):
+        show_story_page(idx, page)
+    clear_screen()
 
 
 ATTACK_POTION_KEY = 'attack_potion'
@@ -800,6 +897,7 @@ def show_main_menu():
             time.sleep(1)
 
 def start_game():
+    show_story_intro()
     show_main_menu()
     
     # --- 2. Mainīgie spēlētāja stāvoklim ---
