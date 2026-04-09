@@ -417,7 +417,7 @@ ITEMS = {
         'name': 'Extra Life',
         'description': 'Atjauno 50% no Tava maksimālā HP uzreiz.',
         'art_file': 'Extra_Life.txt',
-        'drop_chance': 0.37,
+        'drop_chance': 0.37,  
         'combat_usable': False,
         'outside_usable': True,
     },
@@ -433,7 +433,7 @@ ITEMS = {
         'name': '404 Flashbang',
         'description': 'Piespiež ienaidnieku palaist garām 2 gājienus un samazina tā precizitāti.',
         'art_file': 'flashbang.txt',
-        'drop_chance': 0.55,
+        'drop_chance': 0.50,  
         'combat_usable': True,
         'outside_usable': False,
     },
@@ -531,12 +531,15 @@ def run_final_boss(player):
         return
 
     stop_music()
+
+    play_music('theme1.mp3', loops=-1)
+
     clear_screen()
     final_boss_dialogue([
         'Something wakes in the deepest dark...',
-        'You can feel Tukšums stir beneath the earth.',
-        'The Void: "Another fool dares disturb my hunger."',
-        'Cave Runner: "I came to end you, not to run."',
+        'You can feel "Void" stir beneath the earth.\n',
+        'The Void: "Another fool dares disturb my hunger."\n',
+        'Cave Runner: "I came to end you, not to run."\n',
         'The Void: "Then take your last breath, mortal."',
     ])
 
@@ -548,6 +551,7 @@ def run_final_boss(player):
     while True:
         choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
         if choice == 'mercy':
+            stop_music()
             play_sound('mercy.mp3')
             clear_screen()
             print(center_text(color_text('Your defiance fades as Tukšums swallows your hope...', RED, bold=True)))
@@ -562,15 +566,17 @@ def run_final_boss(player):
 
     boss = {
         'name': 'The Void',
-        'hp': 300,
-        'max_hp': 500,
-        'attack': 67,
+        'hp': 400,
+        'max_hp': 400,
+        'attack': 44,
         'defense': 15,
+        # other branch used hp=180,max_hp=180,attack=60,defense=25
         'phase': 1,
         'is_boss': True,
     }
+    stop_music()
 
-    play_music('messages.mp3', loops=-1)
+    play_music('theme2.mp3', loops=-1)
     time.sleep(1)
 
     defending = False
@@ -595,7 +601,7 @@ def run_final_boss(player):
             if attack_bonus > 0:
                 msg += " (Attack Potion bonus!)"
             print_centered(color_text(msg, GREEN))
-            play_sound('attack.mp3')
+            play_sound('void_attack.mp3')
             if player.get('attack_potion_turns', 0) > 0:
                 print_centered(color_text('Attack Potion efektu joprojām izmanto kaujas laikā.', DIM))
             if player.get('blind_turns', 0) > 0:
@@ -1031,7 +1037,7 @@ def load_monster(player, boss: bool = False):
     
     # Scale monster stats based on boss wins (only for regular monsters)
     if not boss and player.get('boss_wins', 0) > 0:
-        scale_factor = 1 + 0.67 * player['boss_wins']
+        scale_factor = 1 + 0.9 * player['boss_wins']  # branch A used 0.67, branch B used 1
         monster['hp'] = int(monster['hp'] * scale_factor)
         monster['attack'] = int(monster['attack'] * scale_factor)
         monster['defense'] = int(monster['defense'] * scale_factor)
@@ -1049,7 +1055,7 @@ def load_monster(player, boss: bool = False):
 
 def level_up(player):
     player["level"] += 1
-    player["xp_needed"] += 40  # Increase XP needed for next level
+    player["xp_needed"] += 40  # other branch used 43
     points = 3
 
     # Big level-up banner with polished layout
@@ -1359,9 +1365,11 @@ def show_main_menu():
     while True:
         clear_screen()
         print(render_ascii_art(CAVE_RUNNER_LOGO, allow_expand=True))
-        print('\n')
         print(render_side_by_side(START_BUTTON_ART, RULES_BUTTON_ART, QUIT_BUTTON_ART))
         print('\n')
+        # Optional plain text labels from the other branch:
+        # print(center_text(color_text('START', CYAN, bold=True).ljust(26) + ' ' * 6 + color_text('RULES', MAGENTA, bold=True).center(24) + ' ' * 6 + color_text('QUIT', RED, bold=True).rjust(18)))
+        # print('\n')
         print_centered(color_text('Ievadi: start, rules vai quit', YELLOW, bold=True))
         print('\n' + '=' * get_terminal_width())
         print_centered(color_text('Tava izvēle:', GREEN, bold=True))
