@@ -461,6 +461,109 @@ ITEM_ALIASES = {
     '404': FLASHBANG_KEY,
 }
 
+LORE_NOTES = [
+    {
+        'title': 'Piezīme 1: Virve vēl silta',
+        'author': 'M. Eglis, kartogrāfs',
+        'min_room': 2,
+        'text': [
+            'Ja kāds šo atrod, tad ala zem vecajiem kara ceļiem ir īsta.',
+            'Mēs iegājām sešatā. Katru pagriezienu iezīmējām ar sarkanu virvi un sveču taukiem.',
+            'Sākumā viss bija viegli. Radības bēga no lāpu gaismas, un no dziļuma nāca silts caurvējš.',
+            'Zem šiem tuneļiem ir aprakta pilsēta. Es to zinu. Es dzirdu durvis aizveramies tur, kur durvju nemaz nav.',
+            'Ja līdz rītausmai neatgriezīšos, pasaki Elīnai, ka man bija taisnība - mums bija jāiet dziļāk.',
+        ],
+    },
+    {
+        'title': 'Piezīme 2: Neuzticies atbalsīm',
+        'author': 'Seržants Veils',
+        'min_room': 4,
+        'text': [
+            'Neuzticies atbalsīm.',
+            'Mēs kliedzām, lai izmērītu kambaru dziļumu, bet skaņa, kas atgriezās, kavējās un bija nepareiza.',
+            'Tā atbildēja ar vārdiem. Vispirms ar manējo. Pēc tam ar kareivju vārdiem, kas jau sen krituši virszemē.',
+            'Rikis aizgāja balsij, kas skanēja tieši kā viņa māte. Mēs atradām tikai viņa laternu, vēl joprojām šūpojoties.',
+            'Virve ir pārgriezta gludi. Nekas šeit neplēš. Tas izvēlas.',
+        ],
+    },
+    {
+        'title': 'Piezīme 3: Akmenī ir zobi',
+        'author': 'I. Krūmiņš, racējs',
+        'min_room': 6,
+        'text': [
+            'Es domāju, ka skrāpēšana sienās ir ūdens spiediens.',
+            'Tā nav. Dažās vietās sienas ir mīkstas. Un siltas. Kad cirtu ar cirtni, akmens asiņoja melns un tunelis nodrebēja.',
+            'Mēs smējāmies, jo bailes padara cilvēkus par idiotiem.',
+            'Kaut kas dziļāk iesmējās pretī.',
+            'Ja redzi klintī rievas kā nagus, kas vilkti no iekšpuses, griezies atpakaļ, pirms tas iemācās tavu soli.',
+        ],
+    },
+    {
+        'title': 'Piezīme 4: Mēs saskaitījām septiņus',
+        'author': 'L. Silarajs',
+        'min_room': 9,
+        'text': [
+            'Pēc šķelšanās pie applūdušajām kāpnēm mēs bijām palikuši tikai pieci.',
+            'Pie nākamā ugunskura uz sienas saskaitījām septiņas ēnas.',
+            'Neviens nerunāja. Nevajadzēja. Mēs visi redzējām, ka tās divas liekās kustas puselpu lēnāk nekā mēs.',
+            'Dace pēc tam vairs negulēja. Viņa teica, ka ēnas pieliecas pie ausīm, kad liesma kļūst vājāka.',
+            'No rīta bija seši guļammaisi. Neviens neatcerējās, ka būtu uztaisījis vēl vienu.',
+        ],
+    },
+    {
+        'title': 'Piezīme 5: Izsalkums bez mutes',
+        'author': 'Brother Arnolds',
+        'min_room': 12,
+        'text': [
+            'Es nācu šurp, lai pierādītu, ka dziļās vietas ir tikai senas pasaules kauju rētas.',
+            'Es kļūdījos. Tā nav brūce. Tas ir izsalkums.',
+            'Radības nesargā apakšējos kambarus. Tās tos baro.',
+            'Katrs līķis, ko atstājām aiz sevis, bija pazudis, kad gājām tam koridoram garām vēlreiz. Ne kaulu. Ne drēbju. Tikai mitrs karstums.',
+            'Ja virszeme šīs alas aizzīmogos, tad nevis, lai mūs nelaistu iekšā, bet lai šo izsalkumu nelaistu ārā.',
+        ],
+    },
+    {
+        'title': 'Piezīme 6: Mira uzrakstīja manu vārdu',
+        'author': 'T. Ozols',
+        'min_room': 15,
+        'text': [
+            'Mira nomira pirms trim kambariem. Es pats viņu apraku zem balta akmens pārkares.',
+            'Šonakt atradu rakstītu ziņu uz sienas viņas rokrakstā.',
+            'TOM NĀC ZEMĀK. DURVIS IR ATVĒRTAS.',
+            'Burti vēl bija mitri. Tie smaržoja pēc dzelzs un veca lietus.',
+            'Esmu aptinis rokas ar drānu, jo katru reizi, kad aizmiegu, mostos ar zemi zem nagiem.',
+        ],
+    },
+    {
+        'title': 'Piezīme 7: Tie valkā mūs',
+        'author': 'nezināms',
+        'min_room': 18,
+        'text': [
+            'Pazudušie nav miruši. Ne gluži.',
+            'Es vienu no viņiem ieraudzīju tumsā, kad mana laterna izdzisa. Tam vēl bija Andra seja, bet smaids bija pārāk plats.',
+            'Tas atdarināja viņa gaitu, klepu, pat to, kā viņš aiz bailēm pieskārās nazim pie jostas.',
+            'Kad pasaucu viņa vārdu, viss pārējais tunelī apklusa, it kā pati ala gaidītu manu atbildi.',
+            'Ja šeit lejā satiec kādu pazīstamu, neļauj viņam nostāties tev aiz muguras.',
+        ],
+    },
+    {
+        'title': 'Piezīme 8: Pēdējā lapa',
+        'author': 'bez paraksta',
+        'min_room': 22,
+        'text': [
+            'Kamēr tu šo lasi, tas jau zina, cik ātri tu elpo.',
+            'Tas iemācās katru skrējēju pēc baiļu ritma. Pēc tam izdobt tuneļus šajā formā un gaida.',
+            'Iepriekšējās piezīmes tika atstātas tev ar nolūku. Cerība aizceļo dziļāk par kliedzieniem.',
+            'Apakšā nekad nav bijis ceļš ārā. Tikai ceļš uz iekšu.',
+            'Ja šī lapa ir silta, negriezies apkārt. Tas nozīmē, ka esmu tuvu.',
+        ],
+    },
+]
+
+LORE_DROP_BASE_CHANCE = 0.07
+LORE_DROP_ROOM_BONUS = 0.003
+LORE_DROP_MAX_CHANCE = 0.16
+
 
 def color_text(text, color, bold=False):
     if not color:
@@ -708,6 +811,8 @@ def show_inventory_status(player):
         else:
             print_centered(color_text(f"{name}: 0 vienības", RED, bold=True))
             print_centered(color_text(f"   {description}", DIM))
+    note_count = player.get('notes_found', 0)
+    print_centered(color_text(f"Piezīmes: {note_count}/{len(LORE_NOTES)}", MAGENTA, bold=True))
     print()
 
 
@@ -859,11 +964,20 @@ def show_items_catalog(player, in_combat=False, monster=None):
             print_centered(color_text(label, CYAN if count > 0 else RED))
             print_centered(color_text(f"   {item['description']}", DIM))
             print()
-        print_centered(color_text("Ievadi numuru vai priekšmeta nosaukumu, lai apskatītu/darbotos ar to.", WHITE))
+        note_count = player.get('notes_found', 0)
+        print_centered(color_text(f"notes - Piezīmes ({note_count}/{len(LORE_NOTES)})", MAGENTA, bold=True))
+        print_centered(color_text('   Atvērt atrasto piezīmju arhīvu un izlasīt tās vēlreiz.', DIM))
+        print()
+        print_centered(color_text("Ievadi numuru, priekšmeta nosaukumu vai 'notes'.", WHITE))
         print_centered(color_text("Raksti 'back' vai 'atpakaļ' lai atgrieztos.", DIM))
         choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
         if choice in ('back', 'atpakaļ', 'atpakal'):
             return None
+        if choice in ('notes', 'note', 'piezīmes', 'piezimes'):
+            show_notes_archive(player)
+            if in_combat:
+                return None
+            continue
         if choice.isdigit() and 1 <= int(choice) <= len(ITEM_ORDER):
             item_key = ITEM_ORDER[int(choice) - 1]
         else:
@@ -887,6 +1001,116 @@ def award_item_drops(player):
             player['items'][item_key] = player['items'].get(item_key, 0) + 1
             print_centered(color_text(f"{info['name']} nomesta! Tev tagad ir {player['items'][item_key]}.", CYAN))
             time.sleep(1)
+
+
+def get_next_lore_note(player):
+    found_count = player.get('notes_found', 0)
+    if found_count >= len(LORE_NOTES):
+        return None, found_count
+    note = LORE_NOTES[found_count]
+    if player.get('room_number', 1) < note['min_room']:
+        return None, found_count
+    return note, found_count
+
+
+def get_collected_lore_notes(player):
+    found_count = max(0, min(player.get('notes_found', 0), len(LORE_NOTES)))
+    return LORE_NOTES[:found_count]
+
+
+def show_lore_note(player, note, note_index, archive=False):
+    clear_screen()
+    stop_music()
+    play_music('messages.mp3', loops=-1)
+
+    width = min(88, max(58, get_terminal_width() - 8))
+    top = '╔' + '═' * (width - 2) + '╗'
+    sep = '╠' + '═' * (width - 2) + '╣'
+    bot = '╚' + '═' * (width - 2) + '╝'
+
+    print()
+    print(center_text(color_text(top, CYAN)))
+    heading = 'ATRASTA PIEZĪME' if not archive else 'PIEZĪMJU ARHĪVS'
+    print(center_text(color_text(heading.center(width - 2), YELLOW, bold=True)))
+    print(center_text(color_text(sep, CYAN)))
+    print(center_text(color_text(note['title'], MAGENTA, bold=True)))
+    print(center_text(color_text(f"Autors: {note['author']}", DIM)))
+    print()
+    for line in note['text']:
+        print(center_text(color_text(line, WHITE)))
+        time.sleep(0.45)
+    print()
+
+    if note_index == len(LORE_NOTES) - 1:
+        print(center_text(color_text('Papīrs ir mitrs. Pirms mirkļa tas vēl nebija.', RED, bold=True)))
+    else:
+        print(center_text(color_text(f"Piezīme {note_index + 1}/{len(LORE_NOTES)}", DIM)))
+
+    print(center_text(color_text(bot, CYAN)))
+    print()
+    prompt_text = 'Nospied Enter, lai turpinātu.' if not archive else 'Nospied Enter, lai atgrieztos pie piezīmēm.'
+    print(center_text(color_text(prompt_text, GREEN, bold=True)))
+    input(center_prompt(''))
+    stop_music()
+    play_music('main.mp3', loops=-1)
+
+
+def show_notes_archive(player):
+    while True:
+        clear_screen()
+        collected_notes = get_collected_lore_notes(player)
+
+        print_centered(color_text('=== PIEZĪMJU ARHĪVS ===', YELLOW, bold=True))
+        print()
+
+        if not collected_notes:
+            print_centered(color_text('Tu vēl neesi atradis nevienu piezīmi.', RED, bold=True))
+            print()
+            print_centered(color_text('Nospied Enter, lai atgrieztos.', GREEN, bold=True))
+            input(center_prompt(''))
+            return
+
+        for index, note in enumerate(collected_notes, start=1):
+            print_centered(color_text(f"{index}. {note['title']}", MAGENTA, bold=True))
+            print_centered(color_text(f"   {note['author']}", DIM))
+            print()
+
+        print_centered(color_text('Ievadi piezīmes numuru, lai to izlasītu vēlreiz.', WHITE))
+        print_centered(color_text("Raksti 'back' vai 'atpakaļ', lai atgrieztos.", DIM))
+        choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+
+        if choice in ('back', 'atpakaļ', 'atpakal'):
+            return
+        if not choice.isdigit():
+            print_centered(color_text('Nepareiza izvēle! Mēģini vēlreiz.', RED))
+            time.sleep(1)
+            continue
+
+        note_number = int(choice)
+        if not 1 <= note_number <= len(collected_notes):
+            print_centered(color_text('Tādas piezīmes nav. Mēģini vēlreiz.', RED))
+            time.sleep(1)
+            continue
+
+        show_lore_note(player, collected_notes[note_number - 1], note_number - 1, archive=True)
+
+
+def maybe_drop_lore_note(player, monster):
+    if monster.get('is_boss'):
+        return
+
+    note, note_index = get_next_lore_note(player)
+    if note is None:
+        return
+
+    drop_chance = min(LORE_DROP_MAX_CHANCE, LORE_DROP_BASE_CHANCE + player.get('room_number', 1) * LORE_DROP_ROOM_BONUS)
+    if random.random() >= drop_chance:
+        return
+
+    player['notes_found'] = note_index + 1
+    print_centered(color_text('Tu atradi saplēstu piezīmi no cita alas skrējēja...', YELLOW, bold=True))
+    time.sleep(1.5)
+    show_lore_note(player, note, note_index)
 
 
 def scale_ascii_art(text, max_width=None, max_height=None, allow_expand=False):
@@ -1029,12 +1253,30 @@ def load_monster(player, boss: bool = False):
         monster['attack'] = int(monster['attack'] * scale_factor)
         monster['defense'] = int(monster['defense'] * scale_factor)
     
-    # Load ASCII art if exists
-    art_path = os.path.join(BASE_DIR, 'Monstri', monster['name'])
+    # Load ASCII art: try bare name, then .txt, then case-insensitive .txt
+    monstri_dir = os.path.join(BASE_DIR, 'Monstri')
+    art_candidates = [
+        os.path.join(monstri_dir, monster['name']),
+        os.path.join(monstri_dir, f"{monster['name']}.txt"),
+    ]
+    # Also try matching case-insensitively (e.g. fat_bat → Fat_bat.txt)
     try:
-        with open(art_path, 'r', encoding='utf-8') as f:
-            monster['art'] = f.read()
-    except FileNotFoundError:
+        dir_entries = os.listdir(monstri_dir)
+        lower_map = {e.lower(): e for e in dir_entries}
+        ci_match = lower_map.get(f"{monster['name'].lower()}.txt")
+        if ci_match:
+            art_candidates.append(os.path.join(monstri_dir, ci_match))
+    except OSError:
+        pass
+    monster['art'] = None
+    for art_path in art_candidates:
+        try:
+            with open(art_path, 'r', encoding='utf-8') as f:
+                monster['art'] = f.read()
+                break
+        except FileNotFoundError:
+            continue
+    if monster['art'] is None:
         monster['art'] = f'No ASCII art for {monster["name"]}'
     # Ensure a max_hp field for HP bar display
     monster['max_hp'] = monster.get('hp', 0)
@@ -1223,6 +1465,7 @@ def run_combat(player, monster):
         player['xp'] += monster['xp_reward']
         print_centered(color_text(f"Tu ieguvi {monster['xp_reward']} XP. Kopā XP: {player['xp']}", CYAN))
         award_item_drops(player)
+        maybe_drop_lore_note(player, monster)
         return True
     else:
         print_centered(color_text(f"\nTu zaudēji pret {monster['name']}.", RED, bold=True))
@@ -1408,6 +1651,7 @@ def start_game():
         "boss_wins": 0,
         "final_boss_chance": 0.0,
         "final_boss_completed": False,
+        "notes_found": 0,
         "items": {
             ATTACK_POTION_KEY: 0,
             EXTRA_LIFE_KEY: 0,
@@ -1559,13 +1803,14 @@ def start_game():
 
     if player["hp"] <= 0:
         play_music('You_Died.mp3', loops=-1)
+        clear_screen()
         gameover_path = os.path.join(os.path.dirname(__file__), '..', 'gameover.txt')
         try:
-            with open(gameover_path, 'r') as f:
+            with open(gameover_path, 'r', encoding='utf-8', errors='replace') as f:
                 gameover_art = f.read()
             print(center_ascii(gameover_art))
-        except FileNotFoundError:
-            print(center_text("GAME OVER"))
+        except Exception:
+            print(center_text(color_text("GAME OVER", RED, bold=True)))
         
         while True:
             print(center_text("Vai vēlies spēlēt vēlreiz? (j/n)"))
