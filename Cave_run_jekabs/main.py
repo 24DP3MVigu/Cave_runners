@@ -566,7 +566,7 @@ def run_final_boss(player):
 
     boss = {
         'name': 'The Void',
-        'hp': 400,
+        'hp': 1,
         'max_hp': 400,
         'attack': 44,
         'defense': 15,
@@ -672,41 +672,25 @@ def run_final_boss(player):
 
     stop_music()
     if player['hp'] > 0 and boss['hp'] <= 0:
-        play_sound('messages.mp3')
+        play_music('victory.mp3', loops=-1)
         clear_screen()
         print_centered(color_text('Tukšums izjūk. Gaisma atgriežas.', GREEN, bold=True))
         time.sleep(2)
         print_centered(color_text('Tev izdevās. Bet atceries: Tukšums gaida atkal.', YELLOW))
+        print_centered(color_text('Apsveicu! Tu esi uzvarējis alas pavēlnieku.', CYAN, bold=True))
+        print()
+        print(center_ascii(load_story_art('End_screen.txt')))
         player['final_boss_completed'] = True
         player['final_boss_chance'] = 0.0
         player['boss_wins'] = 0
-        time.sleep(2)
-        play_music('main.mp3', loops=-1)
+        print()
+        print_centered(color_text('Spied ENTER, lai izietu.', MAGENTA, bold=True))
+        input()
+        sys.exit(0)
     elif player['hp'] <= 0:
         print_centered(color_text('Tavs ceļš beidzās Tukšuma priekšā.', RED, bold=True))
         time.sleep(2)
     player = player or {}
-    menu_width = min(80, max(50, get_terminal_width() - 16))
-    top = '╔' + '═' * (menu_width - 2) + '╗'
-    sep = '╟' + '─' * (menu_width - 2) + '╢'
-    bot = '╚' + '═' * (menu_width - 2) + '╝'
-
-    print()
-    print_centered(color_text('★  IZVĒLIES DARĪBU  ★', CYAN, bold=True))
-    print_centered(top)
-    print_centered(color_text(' Doties tālāk ', CYAN, bold=True) + color_text(' - Doties uz nākamo istabu', WHITE))
-    print_centered(color_text('   ➜ Pārlēkt nākamo cīņu un turpināt ceļu.', DIM))
-    print_centered(sep)
-    print_centered(color_text(' items ', BLUE, bold=True) + color_text(' - Izmantot priekšmetus', WHITE))
-    for item_key in ITEM_ORDER:
-        count = get_item_count(player, item_key)
-        print_centered(color_text(f"   {ITEMS[item_key]['name']}: {count} vienības", DIM))
-    print_centered(color_text('   ✨ Izmanto priekšmetus, lai iegūtu pārsvaru kaujā.', DIM))
-    print_centered(sep)
-    print_centered(color_text(' quit ', RED, bold=True) + color_text(' - Iziet no spēles', WHITE))
-    print_centered(color_text('   ⛔ Pamet kauju un atgriezies galvenajā izvēlnē.', DIM))
-    print_centered(bot)
-    print()
 
 
 def show_inventory_status(player):
