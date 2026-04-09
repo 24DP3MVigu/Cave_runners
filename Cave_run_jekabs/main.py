@@ -360,7 +360,7 @@ def show_story_intro():
     for idx, page in enumerate(STORY_PAGES, start=1):
         show_story_page(idx, page)
         if idx == len(STORY_PAGES):
-            play_music('epic_intro.mp3', loops=-1)
+            play_sound('epic_intro.mp3')
     clear_screen()
 
 
@@ -566,10 +566,10 @@ def run_final_boss(player):
 
     boss = {
         'name': 'The Void',
-        'hp': 1,
+        'hp': 400,
         'max_hp': 400,
-        'attack': 44,
-        'defense': 15,
+        'attack': 45,
+        'defense': 25,
         # other branch used hp=180,max_hp=180,attack=60,defense=25
         'phase': 1,
         'is_boss': True,
@@ -633,19 +633,21 @@ def run_final_boss(player):
 
         time.sleep(1)
 
-        if boss['hp'] <= 120 and boss['phase'] == 1:
+        if boss['hp'] <= 250 and boss['phase'] == 1:
             boss['phase'] = 2
-            boss['attack'] += 4
+            boss['max_hp'] += +150
+            boss['attack'] += 20
             boss['defense'] += 3
-            print_centered(color_text('Tukšums sakustas. Tas kļūst spēcīgāks un cietāks.', RED, bold=True))
-            play_sound('messages.mp3')
+            print_centered(color_text('Tukšums sakustas. Tas kļūst spēcīgāks.', RED, bold=True))
+            play_music('messages.mp3')
             time.sleep(2)
-        elif boss['hp'] <= 60 and boss['phase'] == 2:
+        elif boss['hp'] <= 120 and boss['phase'] == 2:
             boss['phase'] = 3
-            boss['attack'] += 6
+            boss['max_hp'] += 95
+            boss['attack'] += 30
             boss['defense'] += 2
             print_centered(color_text('The Void uzspridzina realitāti. Saule pazūd.', RED, bold=True))
-            play_sound('messages.mp3')
+            play_music('messages.mp3')
             time.sleep(2)
 
         if boss['hp'] > 0:
@@ -665,13 +667,14 @@ def run_final_boss(player):
                 if crit:
                     msg += ' (kritiskais sitiens!)'
                 print_centered(color_text(msg, RED))
-            play_sound('enemy_hit.mp3')
+            play_sound('void_attack.mp3')
             if player.get('hp', 0) <= 0:
                 break
             time.sleep(1)
 
     stop_music()
     if player['hp'] > 0 and boss['hp'] <= 0:
+        stop_music()
         play_music('victory.mp3', loops=-1)
         clear_screen()
         print_centered(color_text('Tukšums izjūk. Gaisma atgriežas.', GREEN, bold=True))
