@@ -704,7 +704,7 @@ def run_final_boss(player):
             if attack_bonus > 0:
                 msg += " (Attack Potion bonus!)"
             print_centered(color_text(msg, GREEN))
-            play_sound('void_attack.mp3')
+            play_sound('attack.mp3')
             if player.get('attack_potion_turns', 0) > 0:
                 print_centered(color_text('Attack Potion efektu joprojām izmanto kaujas laikā.', DIM))
             if player.get('blind_turns', 0) > 0:
@@ -742,7 +742,6 @@ def run_final_boss(player):
             boss['attack'] += 20
             boss['defense'] += 3
             print_centered(color_text('Tukšums sakustas. Tas kļūst spēcīgāks.', RED, bold=True))
-            play_music('messages.mp3')
             time.sleep(2)
         elif boss['hp'] <= 120 and boss['phase'] == 2:
             boss['phase'] = 3
@@ -750,7 +749,6 @@ def run_final_boss(player):
             boss['attack'] += 30
             boss['defense'] += 2
             print_centered(color_text('The Void uzspridzina realitāti. Saule pazūd.', RED, bold=True))
-            play_music('messages.mp3')
             time.sleep(2)
 
         if boss['hp'] > 0:
@@ -1644,7 +1642,7 @@ def start_game():
         "level": 1,
         "xp": 0,
         "xp_needed": 20,
-        "defense": 2,
+        "defense": 200,
         "accuracy": 1.0,
         "blind_turns": 0,
         "attack_potion_turns": 0,
