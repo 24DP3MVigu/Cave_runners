@@ -1648,7 +1648,7 @@ def start_game():
     player = {
         "hp": 100,
         "max_hp": 100,
-        "str": 10,
+        "str": 10,                  #player stats
         "room_number": 1, # --- 4. Cīņu skaitītājs ---
         "level": 1,
         "xp": 0,
