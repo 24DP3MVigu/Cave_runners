@@ -417,7 +417,7 @@ ITEMS = {
         'name': 'Extra Life',
         'description': 'Atjauno 50% no Tava maksimālā HP uzreiz.',
         'art_file': 'Extra_Life.txt',
-        'drop_chance': 0.37,  
+        'drop_chance': 0.39,  
         'combat_usable': False,
         'outside_usable': True,
     },
@@ -1405,7 +1405,7 @@ def run_combat(player, monster):
         
         time.sleep(1)
         
-        # Monster (or boss) turn
+        # Monster (or boss) tu
         if monster['hp'] > 0:
             def_mod = player.get('defense', 0)
             if defending:
@@ -1642,7 +1642,7 @@ def start_game():
         "level": 1,
         "xp": 0,
         "xp_needed": 20,
-        "defense": 200,
+        "defense": 0,
         "accuracy": 1.0,
         "blind_turns": 0,
         "attack_potion_turns": 0,
