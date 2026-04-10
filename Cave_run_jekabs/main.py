@@ -1642,7 +1642,7 @@ def start_game():
         "level": 1,
         "xp": 0,
         "xp_needed": 20,
-        "defense": 200,
+        "defense": 0,
         "accuracy": 1.0,
         "blind_turns": 0,
         "attack_potion_turns": 0,

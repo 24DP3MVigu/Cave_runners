@@ -32,3 +32,32 @@ Traceback (most recent call last):
              ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 OSError: [WinError 6] The handle is invalid
 
+=== Crash detected ===
+Traceback (most recent call last):
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1551, in <module>
+    start_game()
+    ~~~~~~~~~~^^
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1507, in start_game
+    run_final_boss(player)
+    ~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 528, in run_final_boss
+    choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+             ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [WinError 6] The handle is invalid
+
+=== Crash detected ===
+Traceback (most recent call last):
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1827, in <module>
+    start_game()
+    ~~~~~~~~~~^^
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1817, in start_game
+    start_game()
+    ~~~~~~~~~~^^
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 1782, in start_game
+    run_final_boss(player)
+    ~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\a240371rv\Downloads\caverunner\Cave_runners\Cave_run_jekabs\main.py", line 655, in run_final_boss
+    choice = input(color_text(center_prompt('> '), GREEN, bold=True)).strip().lower()
+             ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [WinError 6] The handle is invalid
+
