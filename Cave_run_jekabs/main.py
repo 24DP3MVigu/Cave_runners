@@ -5,6 +5,7 @@ import csv
 import random
 import re
 import shutil
+import subprocess
 import ctypes
 import traceback
 from ctypes import wintypes
@@ -119,12 +120,22 @@ def play_sound(filename, loops=0):
 
     if AUDIO_BACKEND == 'mci':
         alias = 'sfx'
-        if not mci_open(path, alias):
+        if mci_open(path, alias):
+            if loops == -1:
+                mci_send_string(f'play {alias} repeat')
+            else:
+                mci_send_string(f'play {alias}')
             return
-        if loops == -1:
-            mci_send_string(f'play {alias} repeat')
-        else:
-            mci_send_string(f'play {alias}')
+        # Fallback for MP3 files that MCI cannot open directly
+        try:
+            subprocess.Popen([
+                'powershell',
+                '-NoProfile',
+                '-Command',
+                f"$p = New-Object -ComObject WMPlayer.OCX.7; $p.URL = '{path}'; $p.controls.play(); while ($p.playState -ne 1) {{ Start-Sleep -Milliseconds 100 }}"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
         return
 
     sound = load_sound_asset(filename)
@@ -331,7 +342,7 @@ def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 
-def show_story_page(page_index, page):
+def show_story_page(page):
     clear_screen()
     art = load_story_art(page['art_file'])
     print(center_ascii(art))
@@ -357,10 +368,10 @@ def show_story_intro():
     stop_music()
     play_music('before_epic_intro.mp3', loops=-1)
     show_fullscreen_prompt()
-    for idx, page in enumerate(STORY_PAGES, start=1):
-        show_story_page(idx, page)
-        if idx == len(STORY_PAGES):
-            play_sound('epic_intro.mp3')
+    for page in STORY_PAGES:
+        show_story_page(page)
+    stop_music()
+    play_sound('boomsound.mp3')
     clear_screen()
 
 
@@ -738,16 +749,16 @@ def run_final_boss(player):
 
         if boss['hp'] <= 250 and boss['phase'] == 1:
             boss['phase'] = 2
-            boss['max_hp'] += +150
-            boss['attack'] += 20
-            boss['defense'] += 3
+            boss['max_hp'] += +170
+            boss['attack'] += 25
+            boss['defense'] += 10
             print_centered(color_text('Tukšums sakustas. Tas kļūst spēcīgāks.', RED, bold=True))
             time.sleep(2)
         elif boss['hp'] <= 120 and boss['phase'] == 2:
             boss['phase'] = 3
-            boss['max_hp'] += 95
+            boss['max_hp'] += 100
             boss['attack'] += 30
-            boss['defense'] += 2
+            boss['defense'] += 10
             print_centered(color_text('The Void uzspridzina realitāti. Saule pazūd.', RED, bold=True))
             time.sleep(2)
 
