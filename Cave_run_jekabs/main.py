@@ -35,7 +35,6 @@ try:
 except Exception:
     pass
 
-<<<<<<< HEAD
 # --- Importi no spēles moduļiem ---
 from iestatijumi import (
     ATTACK_POTION_KEY, EXTRA_LIFE_KEY, TELEPORT_KEY, FLASHBANG_KEY,
@@ -59,7 +58,6 @@ from boss import is_boss_room, generate_boss, boss_intro_text
 # ============================================================
 # Galvenā spēles funkcija
 # ============================================================
-=======
 from boss import is_boss_room, generate_boss, boss_intro_text, boss_special_action
 
 DEFAULT_TERMINAL_WIDTH = 80
@@ -1681,7 +1679,6 @@ def show_rules():
     print(center_text('Nospied Enter, lai atgrieztos pie galvenās izvēlnes.'))
     input(center_prompt(''))
 
->>>>>>> 67f16c460d3271d185166162e25e2e074b1aee69
 
 def start_game():
     """Palaiž spēli — stāsta ievads, izvēlne, un galvenā spēles cilpa."""
@@ -1695,13 +1692,8 @@ def start_game():
     player = {
         "hp": 100,
         "max_hp": 100,
-<<<<<<< HEAD
-        "str": 10,
-        "room_number": 1,
-=======
         "str": 10,                  #player stats
         "room_number": 1, # --- 4. Cīņu skaitītājs ---
->>>>>>> 67f16c460d3271d185166162e25e2e074b1aee69
         "level": 1,
         "xp": 0,
         "xp_needed": 20,

@@ -87,17 +87,17 @@ def run_final_boss(player):
     # --- Ievada dialogs ---
     clear_screen()
     final_boss_dialogue([
-        'Something wakes in the deepest dark...',
-        'You can feel "Void" stir beneath the earth.\n',
-        'The Void: "Another fool dares disturb my hunger."\n',
-        'Cave Runner: "I came to end you, not to run."\n',
-        'The Void: "Then take your last breath, mortal."',
+        'Kaut kas mostas visdziļākajā tumsā...',
+        'Tu jūti, kā "Tukšums" sakustas zem zemes.\n',
+        'Tukšums: "Vēl viens muļķis iedrošinās traucēt manu izsalkumu."\n',
+        'Alas Skrējējs: "Es atnācu tevi iznīcināt, nevis bēgt."\n',
+        'Tukšums: "Tad ieelpo pēdējo reizi, mirstīgais."',
     ])
 
     print(render_final_boss_art(1))
     print('\n')
-    print(center_text(color_text('MERCY or CHALLENGE?', YELLOW, bold=True)))
-    print(center_text(color_text('Type "mercy" to surrender, or "challenge" to fight.', WHITE)))
+    print(center_text(color_text('ŽĒLASTĪBA vai IZAICINĀJUMS?', YELLOW, bold=True)))
+    print(center_text(color_text('Raksti "mercy" lai padotos, vai "challenge" lai cīnītos.', WHITE)))
 
     # --- Izvēle: padevēšanās vai cīņa ---
     while True:
@@ -107,10 +107,10 @@ def run_final_boss(player):
             play_sound('mercy.mp3')
             clear_screen()
             print(center_text(color_text(
-                'Your defiance fades as Tukšums swallows your hope...', RED, bold=True
+                'Tava pretestība izgaist, kamēr Tukšums aprij tavu cerību...', RED, bold=True
             )))
             time.sleep(2)
-            print(center_text(color_text('GAME OVER', RED, bold=True)))
+            print(center_text(color_text('SPĒLE BEIGUSIES', RED, bold=True)))
             time.sleep(2)
             sys.exit(0)
         elif choice == 'challenge':
@@ -120,7 +120,7 @@ def run_final_boss(player):
 
     # --- Beigu bosa statistika ---
     boss = {
-        'name': 'The Void',
+        'name': 'Tukšums',
         'hp': 400,
         'max_hp': 400,
         'attack': 45,
@@ -136,10 +136,10 @@ def run_final_boss(player):
     defending = False
     while player['hp'] > 0 and boss['hp'] > 0:
         clear_screen()
-        print_centered(color_text('!!! FINAL BOSS: THE VOID !!!', RED, bold=True))
+        print_centered(color_text('!!! BEIGU BOSS: TUKŠUMS !!!', RED, bold=True))
         print(render_final_boss_art(boss['phase']))
         display_hp_bar(player['hp'], player['max_hp'], 'Tavs HP', centered=True)
-        display_hp_bar(boss['hp'], boss['max_hp'], "The Void HP", centered=True)
+        display_hp_bar(boss['hp'], boss['max_hp'], "Tukšuma HP", centered=True)
         print_centered(color_text(
             f"Spēks: {player['str']} | Aizsardzība: {player.get('defense', 0)}", MAGENTA
         ))
@@ -152,15 +152,15 @@ def run_final_boss(player):
             attack_bonus = 5 if player.get('attack_potion_turns', 0) > 0 else 0
             dmg, crit = final_damage(player['str'] + attack_bonus, boss['defense'])
             boss['hp'] -= dmg
-            msg = f"Tu uzbruki un nodarīji {dmg} damage"
+            msg = f"Tu uzbruki un nodarīji {dmg} bojājumus"
             if crit:
                 msg += " (kritiskais sitiens!)"
             if attack_bonus > 0:
-                msg += " (Attack Potion bonus!)"
+                msg += " (Uzbrukuma dziras bonuss!)"
             print_centered(color_text(msg, GREEN))
             play_sound('attack.mp3')
             if player.get('attack_potion_turns', 0) > 0:
-                print_centered(color_text('Attack Potion efektu joprojām izmanto kaujas laikā.', DIM))
+                print_centered(color_text('Uzbrukuma dziras efekts joprojām darbojas.', DIM))
             if player.get('blind_turns', 0) > 0:
                 player['blind_turns'] -= 1
                 if player['blind_turns'] == 0:
@@ -198,14 +198,14 @@ def run_final_boss(player):
             boss['max_hp'] += 170
             boss['attack'] += 25
             boss['defense'] += 20
-            print_centered(color_text('Tukšums sakustas. Tas kļūst spēcīgāks.', RED, bold=True))
+            print_centered(color_text('Tukšums sakustas. Tas kļūst spēcīgāks!', RED, bold=True))
             time.sleep(2)
         elif boss['hp'] <= 120 and boss['phase'] == 2:
             boss['phase'] = 3
             boss['max_hp'] += 100
             boss['attack'] += 30
             boss['defense'] += 15
-            print_centered(color_text('The Void uzspridzina realitāti. Saule pazūd.', RED, bold=True))
+            print_centered(color_text('Tukšums saplēš realitāti. Saule pazūd!', RED, bold=True))
             time.sleep(2)
 
         # --- Bosa gājiens ---
@@ -220,12 +220,12 @@ def run_final_boss(player):
                 carve = int(boss['attack'] * 1.4)
                 player['hp'] -= carve
                 print_centered(color_text(
-                    f'The Void tears through your armor for {carve} damage!', RED, bold=True
+                    f'Tukšums izplēš tavu bruņojumu un nodara {carve} bojājumus!', RED, bold=True
                 ))
             else:
                 dmg, crit = final_damage(boss['attack'], def_mod)
                 player['hp'] -= dmg
-                msg = f'The Void uzbruka un nodarīja {dmg} damage'
+                msg = f'Tukšums uzbruka un nodarīja {dmg} bojājumus'
                 if crit:
                     msg += ' (kritiskais sitiens!)'
                 print_centered(color_text(msg, RED))
@@ -243,8 +243,8 @@ def run_final_boss(player):
         clear_screen()
         print_centered(color_text('Tukšums izjūk. Gaisma atgriežas.', GREEN, bold=True))
         time.sleep(2)
-        print_centered(color_text('Tev izdevās. Bet atceries: Tukšums gaida atkal.', YELLOW))
-        print_centered(color_text('Apsveicu! Tu esi uzvarējis alas pavēlnieku.', CYAN, bold=True))
+        print_centered(color_text('Tev izdevās. Bet atceries — Tukšums vienmēr gaida...', YELLOW))
+        print_centered(color_text('Apsveicam! Tu esi uzvarējis Alas Pavēlnieku!', CYAN, bold=True))
         print()
         print(center_ascii(load_story_art('End_screen.txt')))
         player['final_boss_completed'] = True
